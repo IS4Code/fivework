@@ -6,6 +6,8 @@ local m_random = math.random
 local cor_yield = coroutine.yield
 local error = _ENV.error
 local rawset = _ENV.rawset
+local type = _ENV.type
+local ipairs = _ENV.ipairs
 
 local CancelEvent = _ENV.CancelEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent
@@ -84,7 +86,29 @@ local function player_scheduler_factory(name)
       continuations[token] = nil
       return callback(...)
     end
-    TriggerClientEvent('fivework:ExecFunction', name, token, t_pack(...))
+    TriggerClientEvent('fivework:ExecFunction', player, name, token, t_pack(...))
+  end
+end
+
+local function all_scheduler_factory(name)
+  return function(callback, ...)
+    return callback(true, TriggerClientEvent('fivework:ExecFunction', -1, name, nil, t_pack(...)))
+  end
+end
+
+local function group_scheduler_factory(name)
+  return function(callback, group, ...)
+    local args = t_pack(...)
+    if type(group) == 'table' then
+      for i, v in ipairs(group) do
+        TriggerClientEvent('fivework:ExecFunction', v, name, nil, args)
+      end
+    elseif type(group) == 'function' then
+      for i, v in group do
+        TriggerClientEvent('fivework:ExecFunction', v, name, nil, args)
+      end
+    end
+    return callback(true)
   end
 end
 
@@ -118,4 +142,12 @@ end
 
 ForPlayer = setmetatable({}, {
   __index = for_index(player_scheduler_factory)
+})
+
+ForAll = setmetatable({}, {
+  __index = for_index(all_scheduler_factory)
+})
+
+ForGroup = setmetatable({}, {
+  __index = for_index(group_scheduler_factory)
 })
