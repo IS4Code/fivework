@@ -151,3 +151,10 @@ ForAll = setmetatable({}, {
 ForGroup = setmetatable({}, {
   __index = for_index(group_scheduler_factory)
 })
+
+function FW_UseFunction(name)
+  _ENV[name..'ForPlayer'] = ForPlayer[name]
+  _ENV[name..'ForAll'] = ForAll[name]
+  _ENV[name..'ForGroup'] = ForGroup[name]
+end
+
