@@ -1,13 +1,18 @@
 -- imports
 
-local t_unpack = table.unpack
+local t_unpack_orig = table.unpack
 local s_char = string.char
 local m_random = math.random
 local cor_yield = coroutine.yield
 local error = _ENV.error
 local rawset = _ENV.rawset
+
 local CancelEvent = _ENV.CancelEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent
+
+local function t_unpack(t)
+  return t_unpack_orig(t, 1, t.n)
+end
 
 -- internal
 

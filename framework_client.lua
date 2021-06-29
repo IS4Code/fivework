@@ -1,10 +1,14 @@
 -- imports
 
 local t_pack = table.pack
-local t_unpack = table.unpack
+local t_unpack_orig = table.unpack
 local pcall = _ENV.pcall
 
 local TriggerServerEvent = _ENV.TriggerServerEvent
+
+local function t_unpack(t)
+  return t_unpack_orig(t, 1, t.n)
+end
 
 -- internal
 
