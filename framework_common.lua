@@ -11,7 +11,7 @@ local Cfx_SetTimeout = Citizen.SetTimeout
 
 -- async processing
 
-local function run_async(func, ...)
+function FW_Async(func, ...)
   local thread = cor_create(func)
   local on_yield
   local function schedule(scheduler, ...)
@@ -30,6 +30,7 @@ local function run_async(func, ...)
   end
   return on_yield(cor_resume(thread, ...))
 end
+local FW_Async = _ENV.FW_Async
 
 local function sleep_scheduler(func, ms, ...)
   return Cfx_SetTimeout(ms, func, ...)
@@ -49,7 +50,7 @@ public = setmetatable({}, {
       registered_events[key] = FW_CreateCallbackHandler(key, function(...)
         local func = self[key]
         if func then
-          return run_async(func, ...)
+          return FW_Async(func, ...)
         end
       end)
     end
@@ -74,7 +75,7 @@ local function cmd_newindex(restricted)
       local handler = function(...)
         local func = self[key]
         if func then
-          return run_async(func, ...)
+          return FW_Async(func, ...)
         end
       end
       RegisterCommand(key, handler, restricted)
