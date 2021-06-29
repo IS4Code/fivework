@@ -90,6 +90,12 @@ local function player_scheduler_factory(name)
   end
 end
 
+local function player_scheduler_factory_no_wait(name)
+  return function(callback, player, ...)
+    return callback(true, TriggerClientEvent('fivework:ExecFunction', player, name, nil, t_pack(...)))
+  end
+end
+
 local function all_scheduler_factory(name)
   return function(callback, ...)
     return callback(true, TriggerClientEvent('fivework:ExecFunction', -1, name, nil, t_pack(...)))
@@ -144,6 +150,10 @@ ForPlayer = setmetatable({}, {
   __index = for_index(player_scheduler_factory)
 })
 
+ForPlayerNoWait = setmetatable({}, {
+  __index = for_index(player_scheduler_factory_no_wait)
+})
+
 ForAll = setmetatable({}, {
   __index = for_index(all_scheduler_factory)
 })
@@ -154,6 +164,7 @@ ForGroup = setmetatable({}, {
 
 function FW_UseFunction(name)
   _ENV[name..'ForPlayer'] = ForPlayer[name]
+  _ENV[name..'ForPlayerNoWait'] = ForPlayerNoWait[name]
   _ENV[name..'ForAll'] = ForAll[name]
   _ENV[name..'ForGroup'] = ForGroup[name]
 end
