@@ -1,7 +1,13 @@
 -- imports
 
 local t_unpack = table.unpack
+local s_char = string.char
+local m_random = math.random
+local cor_yield = coroutine.yield
+local error = _ENV.error
+local rawset = _ENV.rawset
 local CancelEvent = _ENV.CancelEvent
+local TriggerClientEvent = _ENV.TriggerClientEvent
 
 -- internal
 
@@ -13,7 +19,7 @@ end
 
 local net_callback_handlers = {}
 
--- configuration
+-- callback configuration
 
 function FW_RegisterCallback(name, eventname, has_source, cancellable)
   callback_info[name] = function(handler)
@@ -45,3 +51,66 @@ AddEventHandler('fivework:ClientCallback', function(name, args)
     return handler(source, t_unpack(args))
   end
 end)
+
+-- remote execution
+
+local continuations = {}
+
+local function newid()
+  local chars = {}
+  for i = 1, 32 do
+    chars[i] = m_random(33, 126)
+  end
+  return s_char(t_unpack(chars))
+end
+
+local function newtoken()
+  local token
+  repeat
+    token = newid()
+  until not continuations[token]
+  return token
+end
+
+local function player_scheduler_factory(name)
+  return function(callback, player, ...)
+    local token = newtoken()
+    continuations[token] = function(...)
+      continuations[token] = nil
+      return callback(...)
+    end
+    TriggerClientEvent('fivework:ExecFunction', name, token, t_pack(...))
+  end
+end
+
+RegisterNetEvent('fivework:ExecFunctionResult')
+AddEventHandler('fivework:ExecFunctionResult', function(token, status, args)
+  local handler = continuations[token]
+  if handler then
+    return handler(status, t_unpack(args))
+  elseif not status then
+    error(t_unpack(args))
+  end
+end)
+
+local function handle_result(status, ...)
+  if not status then
+    error(...)
+  end
+  return ...
+end
+
+local function for_index(scheduler_factory)
+  return function(self, key)
+    local scheduler = scheduler_factory(key)
+    local function caller(...)
+      return handle_result(cor_yield(scheduler, ...))
+    end
+    rawset(self, key, caller)
+    return caller
+  end
+end
+
+ForPlayer = setmetatable({}, {
+  __index = for_index(player_scheduler_factory)
+})
