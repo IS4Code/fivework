@@ -6,6 +6,8 @@ local pcall = _ENV.pcall
 
 local TriggerServerEvent = _ENV.TriggerServerEvent
 
+local FW_Async = _ENV.FW_Async
+
 local function t_unpack(t)
   return t_unpack_orig(t, 1, t.n)
 end
@@ -55,8 +57,11 @@ local function process_call(token, status, ...)
   end
 end
 
+local function remote_call(name, token, args)
+  return process_call(token, pcall(_ENV[name], t_unpack(args)))
+end
+
 RegisterNetEvent('fivework:ExecFunction')
 AddEventHandler('fivework:ExecFunction', function(name, token, args)
-  return process_call(token, pcall(_ENV[name], t_unpack(args)))
+  return FW_Async(remote_call, name, token, args)
 end)
-
