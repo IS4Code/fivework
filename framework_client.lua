@@ -4,6 +4,7 @@ local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local pcall = _ENV.pcall
 local pairs = _ENV.pairs
+local cor_yield = coroutine.yield
 
 local TriggerServerEvent = _ENV.TriggerServerEvent
 
@@ -92,3 +93,38 @@ RegisterNetEvent('fivework:ExecFunction')
 AddEventHandler('fivework:ExecFunction', function(name, args, token)
   return FW_Async(remote_call, name, token, args)
 end)
+
+-- in-game functions
+
+local Cfx_Wait = Citizen.Wait
+local Cfx_CreateThread = Citizen.CreateThread
+local IsModelValid = _ENV.IsModelValid
+local RequestModel = _ENV.RequestModel
+local GetGameTimer = _ENV.GetGameTimer
+local HasModelLoaded = _ENV.HasModelLoaded
+local GetTimeDifference = _ENV.GetTimeDifference
+local SetModelAsNoLongerNeeded = _ENV.SetModelAsNoLongerNeeded
+
+local function model_scheduler(callback, hash, timeout)
+  timeout = timeout or 1000
+  return Cfx_CreateThread(function()
+  	RequestModel(hash)
+    local time = GetGameTimer()
+  	while not HasModelLoaded(hash) do
+  		RequestModel(hash)
+  		Cfx_Wait(0)
+      local diff = GetTimeDifference(GetGameTimer(), time)
+      if diff > timeout then
+        return callback(false)
+      end
+  	end
+    callback(true)
+    SetModelAsNoLongerNeeded(hash)
+  end)
+end
+
+function LoadModel(hash, ...)
+  if not IsModelValid(hash) then return false end
+  return HasModelLoaded(hash) or cor_yield(model_scheduler, hash, ...)
+end
+
