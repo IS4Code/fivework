@@ -92,16 +92,18 @@ cmd = setmetatable({}, {
    __newindex = cmd_newindex(false)
 })
 
-cmdp = setmetatable({}, {
+cmd_ac = setmetatable({}, {
    __newindex = cmd_newindex(true)
 })
+
+local cmd, cmd_ac = _ENV.cmd, _ENV.cmd_ac
 
 function FW_TriggerCommand(name, ...)
   local handler = cmd[name]
   if handler then
     return handler(...)
   end
-  handler = cmdp[name]
+  handler = cmd_ac[name]
   if handler then
     return handler(...)
   end
