@@ -44,6 +44,7 @@ end
 function Sleep(...)
   return cor_yield(sleep_scheduler, ...)
 end
+local Sleep = _ENV.Sleep
 
 -- events
 
@@ -80,7 +81,10 @@ local function cmd_newindex(restricted)
       registered_commands[key] = RegisterCommand(key, function(source, args, rawCommand)
         local func = self[key]
         if func then
-          return FW_Async(func, source, rawCommand, t_unpack(args))
+          return FW_Async(function(...)
+            Sleep(0)
+            return func(...)
+          end, source, rawCommand, t_unpack(args))
         end
       end, restricted)
     end
