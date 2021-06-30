@@ -1,9 +1,10 @@
 -- imports
 
 local t_unpack_orig = table.unpack
-local s_char = string.char
+local str_char = string.char
 local m_random = math.random
 local cor_yield = coroutine.yield
+local str_format = string.format
 local error = _ENV.error
 local rawset = _ENV.rawset
 local type = _ENV.type
@@ -68,7 +69,7 @@ local function newid()
   for i = 1, 32 do
     chars[i] = m_random(33, 126)
   end
-  return s_char(t_unpack(chars))
+  return str_char(t_unpack(chars))
 end
 
 local function newtoken()
@@ -102,17 +103,19 @@ local function all_scheduler_factory(name)
   end
 end
 
+local function iterator(obj)
+  if type(obj) == 'table' then
+    return ipairs(obj)
+  elseif type(obj) == 'function' then
+    return obj
+  end
+end
+
 local function group_scheduler_factory(name)
   return function(callback, group, ...)
     local args = t_pack(...)
-    if type(group) == 'table' then
-      for i, v in ipairs(group) do
-        TriggerClientEvent('fivework:ExecFunction', v, name, nil, args)
-      end
-    elseif type(group) == 'function' then
-      for i, v in group do
-        TriggerClientEvent('fivework:ExecFunction', v, name, nil, args)
-      end
+    for i, v in iterator(group) do
+      TriggerClientEvent('fivework:ExecFunction', v, name, nil, args)
     end
     return callback(true)
   end
@@ -169,3 +172,35 @@ function FW_UseFunction(name)
   _ENV[name..'ForGroup'] = ForGroup[name]
 end
 
+-- chat utils
+
+local function hexcolor(code)
+  local b, g, r = code & 0xFF, (code >> 8) & 0xFF, (code >> 16) & 0xFF
+  return {r, g, b}
+end
+
+function SendClientMessage(playerid, color, message)
+  if type(message) == 'string' then
+    message = {message}
+  end
+  if type(color) == 'number' then
+    color = hexcolor(color)
+  end
+  return TriggerClientEvent('chat:addMessage', playerid, {color = color, multiline = true, args = message})
+end
+
+local SendClientMessage = _ENV.SendClientMessage
+
+function SendClientMessageToAll(...)
+  return SendClientMessage(-1, ...)
+end
+
+local SendClientMessageToAll = _ENV.SendClientMessageToAll
+
+function SendClientMessageFormat(playerid, color, format, ...)
+  return SendClientMessage(playerid, color, str_format(format, ...))
+end
+
+function SendClientMessageToAllFormat(color, format, ...)
+  return SendClientMessageToAll(color, str_format(format, ...))
+end
