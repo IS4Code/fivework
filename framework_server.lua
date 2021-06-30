@@ -89,19 +89,19 @@ local function player_scheduler_factory(name)
       continuations[token] = nil
       return callback(...)
     end
-    TriggerClientEvent('fivework:ExecFunction', player, name, token, t_pack(...))
+    TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(...), token)
   end
 end
 
 local function player_scheduler_factory_no_wait(name)
   return function(callback, player, ...)
-    return callback(true, TriggerClientEvent('fivework:ExecFunction', player, name, nil, t_pack(...)))
+    return callback(true, TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(...), nil))
   end
 end
 
 local function all_scheduler_factory(name)
   return function(callback, ...)
-    return callback(true, TriggerClientEvent('fivework:ExecFunction', -1, name, nil, t_pack(...)))
+    return callback(true, TriggerClientEvent('fivework:ExecFunction', -1, name, t_pack(...), nil))
   end
 end
 
@@ -117,14 +117,14 @@ local function group_scheduler_factory(name)
   return function(callback, group, ...)
     local args = t_pack(...)
     for i, v in iterator(group) do
-      TriggerClientEvent('fivework:ExecFunction', v, name, nil, args)
+      TriggerClientEvent('fivework:ExecFunction', v, name, args, nil)
     end
     return callback(true)
   end
 end
 
 RegisterNetEvent('fivework:ExecFunctionResult')
-AddEventHandler('fivework:ExecFunctionResult', function(token, status, args)
+AddEventHandler('fivework:ExecFunctionResult', function(status, args, token)
   local handler = continuations[token]
   if handler then
     return handler(status, t_unpack(args))

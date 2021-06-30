@@ -80,7 +80,7 @@ end
 
 local function process_call(token, status, ...)
   if token or not status then
-    return TriggerServerEvent('fivework:ExecFunctionResult', token, status, t_pack(...))
+    return TriggerServerEvent('fivework:ExecFunctionResult', status, t_pack(...), token)
   end
 end
 
@@ -89,6 +89,6 @@ local function remote_call(name, token, args)
 end
 
 RegisterNetEvent('fivework:ExecFunction')
-AddEventHandler('fivework:ExecFunction', function(name, token, args)
+AddEventHandler('fivework:ExecFunction', function(name, args, token)
   return FW_Async(remote_call, name, token, args)
 end)
