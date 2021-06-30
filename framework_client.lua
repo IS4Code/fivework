@@ -3,6 +3,7 @@
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local pcall = _ENV.pcall
+local pairs = _ENV.pairs
 
 local TriggerServerEvent = _ENV.TriggerServerEvent
 
@@ -49,6 +50,32 @@ function FW_TriggerNetCallback(name, ...)
   return TriggerServerEvent('fivework:ClientCallback', name, t_pack(...))
 end
 
+-- frame handlers
+
+local frame_func_handlers
+
+Citizen.CreateThread(function()
+  while true do
+    for f, args in pairs(frame_func_handlers) do
+      pcall(f, t_unpack(args))
+    end
+    Citizen.Wait(0)
+  end
+end)
+
+local function find_func(name)
+  local f = _ENV[name]
+  if f then
+    return f
+  end
+  f = _ENV[name .. 'ThisFrame']
+  if f then
+    return function(enable, ...)
+      frame_func_handlers[f] = enable and t_pack(...) or nil
+    end
+  end
+end
+
 -- remote execution
 
 local function process_call(token, status, ...)
@@ -58,7 +85,7 @@ local function process_call(token, status, ...)
 end
 
 local function remote_call(name, token, args)
-  return process_call(token, pcall(_ENV[name], t_unpack(args)))
+  return process_call(token, pcall(find_func(name), t_unpack(args)))
 end
 
 RegisterNetEvent('fivework:ExecFunction')
