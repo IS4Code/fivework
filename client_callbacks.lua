@@ -3,3 +3,14 @@ AddEventHandler('onResourceStart', function(resource)
     FW_TriggerNetCallback('OnPlayerInit')
   end
 end)
+
+Citizen.CreateThread(function()
+	while true do
+		Wait(0)
+
+		if NetworkIsSessionStarted() then
+			TriggerServerEvent('fivework:PlayerActivated')
+			return
+		end
+	end
+end)

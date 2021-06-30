@@ -1,7 +1,8 @@
 FW_RegisterCallback('OnEntityCreated', 'entityCreated')
 FW_RegisterCallback('OnEntityCreating', 'entityCreating', nil, true)
 FW_RegisterCallback('OnResourceStart', 'onResourceStart')
-FW_RegisterCallback('OnPlayerConnect', 'playerActivated', true)
+RegisterServerEvent('fivework:PlayerActivated')
+FW_RegisterCallback('OnPlayerConnect', 'fivework:PlayerActivated', true)
 FW_RegisterCallback('OnPlayerDisconnect', 'playerDropped', true)
 FW_RegisterCallback('OnIncomingConnection', 'playerConnecting', nil, true)
 
