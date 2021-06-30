@@ -4,7 +4,8 @@ FW_RegisterCallback('OnResourceStart', 'onResourceStart')
 FW_RegisterServerCallback('OnPlayerConnect', 'fivework:PlayerActivated', true)
 FW_RegisterCallback('OnPlayerDisconnect', 'playerDropped', true)
 FW_RegisterCallback('OnIncomingConnection', 'playerConnecting', nil, true)
-FW_RegisterServerCallback('OnPlayerEnterVehicle', 'baseevents:enteredVehicle')
+FW_RegisterServerCallback('OnPlayerEnterVehicle', 'baseevents:enteredVehicle', true)
+FW_RegisterNetCallback('OnPlayerInit')
 
 AddEventHandler('onResourceStart', function(resource)
   if resource == GetCurrentResourceName() then
