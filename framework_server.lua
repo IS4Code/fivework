@@ -48,6 +48,13 @@ function FW_RegisterCallback(name, eventname, has_source, cancellable)
   end
 end
 
+local FW_RegisterCallback = _ENV.FW_RegisterCallback
+
+function FW_RegisterServerCallback(name, eventname, ...)
+  RegisterServerEvent(eventname)
+  return FW_RegisterCallback(name, eventname, ...)
+end
+
 function FW_RegisterNetCallback(name)
   callback_info[name] = function(handler)
     net_callback_handlers[name] = handler
