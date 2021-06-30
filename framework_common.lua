@@ -86,11 +86,11 @@ local function cmd_newindex(restricted)
 end
 
 cmd = setmetatable({}, {
-   _newindex = cmd_newindex(false)
+   __newindex = cmd_newindex(false)
 })
 
 cmdp = setmetatable({}, {
-   _newindex = cmd_newindex(true)
+   __newindex = cmd_newindex(true)
 })
 
 function FW_TriggerCommand(name, ...)

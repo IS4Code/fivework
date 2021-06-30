@@ -52,7 +52,7 @@ end
 
 -- frame handlers
 
-local frame_func_handlers
+local frame_func_handlers = {}
 
 Citizen.CreateThread(function()
   while true do
