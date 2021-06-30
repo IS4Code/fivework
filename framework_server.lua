@@ -1,5 +1,6 @@
 -- imports
 
+local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local str_char = string.char
 local m_random = math.random
@@ -9,6 +10,7 @@ local error = _ENV.error
 local rawset = _ENV.rawset
 local type = _ENV.type
 local ipairs = _ENV.ipairs
+local tostring = _ENV.tostring
 
 local CancelEvent = _ENV.CancelEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent
@@ -180,8 +182,15 @@ local function hexcolor(code)
 end
 
 function SendClientMessage(playerid, color, message)
-  if type(message) == 'string' then
+  message = message or ""
+  if type(message) ~= 'table' then
+    message = tostring(message)
+    if playerid == 0 then
+      return print(message)
+    end
     message = {message}
+  elseif playerid == 0 then
+    return print(t_unpack(message))
   end
   if type(color) == 'number' then
     color = hexcolor(color)
