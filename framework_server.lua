@@ -3,13 +3,17 @@
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local str_char = string.char
+local str_find = string.find
+local str_sub = string.sub
 local m_random = math.random
 local cor_yield = coroutine.yield
 local str_format = string.format
 local error = _ENV.error
 local rawset = _ENV.rawset
+local rawget = _ENV.rawget
 local type = _ENV.type
 local ipairs = _ENV.ipairs
+local pairs = _ENV.pairs
 local tostring = _ENV.tostring
 
 local CancelEvent = _ENV.CancelEvent
@@ -112,6 +116,29 @@ local function all_scheduler_factory(name)
   end
 end
 
+local NetworkGetEntityOwner = _ENV.NetworkGetEntityOwner
+
+local function owner_scheduler_factory(name)
+  return function(callback, entity, ...)
+    local player = NetworkGetEntityOwner(entity)
+    if not player then return callback(false) end
+    local token = newtoken()
+    continuations[token] = function(...)
+      continuations[token] = nil
+      return callback(...)
+    end
+    TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(...), token)
+  end
+end
+
+local function owner_scheduler_factory_no_wait(name)
+  return function(callback, entity, ...)
+    local player = NetworkGetEntityOwner(entity)
+    if not player then return callback(false) end
+    return callback(true, TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(...), nil))
+  end
+end
+
 local function iterator(obj)
   if type(obj) == 'table' then
     return ipairs(obj)
@@ -158,28 +185,47 @@ local function for_index(scheduler_factory)
   end
 end
 
-ForPlayer = setmetatable({}, {
-  __index = for_index(player_scheduler_factory)
-})
+local func_patterns = {
+  ['ForPlayer$'] = setmetatable({}, {
+    __index = for_index(player_scheduler_factory)
+  }),
+  ['ForPlayerNoWait$'] = setmetatable({}, {
+    __index = for_index(player_scheduler_factory_no_wait)
+  }),
+  ['ForAll$'] = setmetatable({}, {
+    __index = for_index(all_scheduler_factory)
+  }),
+  ['ForGroup$'] = setmetatable({}, {
+    __index = for_index(group_scheduler_factory)
+  }),
+  ['ForOwner$'] = setmetatable({}, {
+    __index = for_index(owner_scheduler_factory)
+  }),
+  ['ForOwnerNoWait$'] = setmetatable({}, {
+    __index = for_index(owner_scheduler_factory_no_wait)
+  })
+}
 
-ForPlayerNoWait = setmetatable({}, {
-  __index = for_index(player_scheduler_factory_no_wait)
-})
-
-ForAll = setmetatable({}, {
-  __index = for_index(all_scheduler_factory)
-})
-
-ForGroup = setmetatable({}, {
-  __index = for_index(group_scheduler_factory)
-})
-
-function FW_UseFunction(name)
-  _ENV[name..'ForPlayer'] = ForPlayer[name]
-  _ENV[name..'ForPlayerNoWait'] = ForPlayerNoWait[name]
-  _ENV[name..'ForAll'] = ForAll[name]
-  _ENV[name..'ForGroup'] = ForGroup[name]
+local function find_pattern_function(key)
+  for pattern, t in pairs(func_patterns) do
+    local i, j = str_find(key, pattern)
+    if i then
+      key = str_sub(key, 1, i - 1)..str_sub(key, j + 1)
+      return t[key]
+    end
+  end
 end
+
+setmetatable(_ENV, {
+  __index = function(self, key)
+    if type(key) ~= 'string' then return nil end
+    local result = find_pattern_function(key)
+    if result then
+      rawset(self, key, result)
+      return result
+    end
+  end
+})
 
 -- chat utils
 
