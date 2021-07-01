@@ -5,8 +5,12 @@ local t_unpack_orig = table.unpack
 local pcall = _ENV.pcall
 local pairs = _ENV.pairs
 local cor_yield = coroutine.yield
+local str_find = string.find
+local str_sub = string.sub
 
 local TriggerServerEvent = _ENV.TriggerServerEvent
+local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
+local NetworkGetEntityFromNetworkId = _ENV.NetworkGetEntityFromNetworkId
 
 local FW_Async = _ENV.FW_Async
 
@@ -64,15 +68,45 @@ Citizen.CreateThread(function()
   end
 end)
 
+local function replace_network_id(entity, ...)
+  return NetworkGetNetworkIdFromEntity(entity), ...
+end
+
+local func_patterns = {
+  ['NetworkedArgument$'] = function(f)
+    return function(entity, ...)
+      entity = NetworkGetEntityFromNetworkId(entity)
+      return f(entity, ...)
+    end
+  end,
+  ['NetworkedResult$'] = function(f)
+    return function(...)
+      return replace_network_id(f(...))
+    end
+  end
+}
+
 local function find_func(name)
   local f = _ENV[name]
   if f then
     return f
   end
-  f = _ENV[name .. 'ThisFrame']
-  if f then
-    return function(enable, ...)
-      frame_func_handlers[f] = enable and t_pack(...) or nil
+  if not str_find(name, 'ThisFrame$') then
+    f = find_func(name .. 'ThisFrame')
+    if f then
+      return function(enable, ...)
+        frame_func_handlers[f] = enable and t_pack(...) or nil
+      end
+    end
+  end
+  for pattern, proc in pairs(func_patterns) do
+    local i, j = str_find(name, pattern)
+    if i then
+      local newname = str_sub(name, 1, i - 1)..str_sub(name, j + 1)
+      f = find_func(newname)
+      if f then
+        return proc(f)
+      end
     end
   end
 end

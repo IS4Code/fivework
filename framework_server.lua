@@ -117,25 +117,30 @@ local function all_scheduler_factory(name)
 end
 
 local NetworkGetEntityOwner = _ENV.NetworkGetEntityOwner
+local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
 
 local function owner_scheduler_factory(name)
+  name = name..'NetworkedArgument'
   return function(callback, entity, ...)
     local player = NetworkGetEntityOwner(entity)
     if not player then return callback(false) end
+    entity = NetworkGetNetworkIdFromEntity(entity)
     local token = newtoken()
     continuations[token] = function(...)
       continuations[token] = nil
       return callback(...)
     end
-    TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(...), token)
+    TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(entity, ...), token)
   end
 end
 
 local function owner_scheduler_factory_no_wait(name)
+  name = name..'NetworkedArgument'
   return function(callback, entity, ...)
     local player = NetworkGetEntityOwner(entity)
     if not player then return callback(false) end
-    return callback(true, TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(...), nil))
+    entity = NetworkGetNetworkIdFromEntity(entity)
+    return callback(true, TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(entity, ...), nil))
   end
 end
 
