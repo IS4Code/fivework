@@ -19,6 +19,12 @@ local str_format = string.format
 local TriggerServerEvent = _ENV.TriggerServerEvent
 local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
 local NetworkGetEntityFromNetworkId = _ENV.NetworkGetEntityFromNetworkId
+local GetGameTimer = _ENV.GetGameTimer
+local GetTimeDifference = _ENV.GetTimeDifference
+local GetTimeOffset = _ENV.GetTimeOffset
+local IsTimeMoreThan = _ENV.IsTimeMoreThan
+local Cfx_Wait = Citizen.Wait
+local Cfx_CreateThread = Citizen.CreateThread
 
 local FW_Async = _ENV.FW_Async
 
@@ -67,14 +73,35 @@ end
 
 local frame_func_handlers = {}
 
-Citizen.CreateThread(function()
+Cfx_CreateThread(function()
   while true do
-    for f, args in pairs(frame_func_handlers) do
-      pcall(f, t_unpack(args))
+    for f, info in pairs(frame_func_handlers) do
+      local timeout, args = info[1], info[2] 
+      if timeout == true then
+        pcall(f, t_unpack(args))
+      elseif IsTimeMoreThan(GetGameTimer(), timeout) then
+        frame_func_handlers[f] = nil
+      else
+        pcall(f, t_unpack(args))
+      end
     end
-    Citizen.Wait(0)
+    Cfx_Wait(0)
   end
 end)
+
+local function pack_frame_args(enable, ...)
+  if enable then
+    if type(enable) == 'number' then
+      return {GetTimeOffset(GetGameTimer(), enable), t_pack(...)}
+    elseif enable == true then
+      return {true, t_pack(...)}
+    else
+      return {true, t_pack(enable, ...)}
+    end
+  end
+end
+
+-- remote execution
 
 local function replace_network_id(entity, ...)
   return NetworkGetNetworkIdFromEntity(entity), ...
@@ -103,11 +130,7 @@ local function find_func(name)
     f = find_func(name .. 'ThisFrame')
     if f then
       return function(enable, ...)
-        if enable and type(enable) ~= 'boolean' then
-          frame_func_handlers[f] = t_pack(enable, ...)
-        else
-          frame_func_handlers[f] = enable and t_pack(...) or nil
-        end
+        frame_func_handlers[f] = pack_frame_args(enable, ...)
       end
     end
   end
@@ -122,8 +145,6 @@ local function find_func(name)
     end
   end
 end
-
--- remote execution
 
 local function process_call(token, status, ...)
   if token or not status then
@@ -142,13 +163,9 @@ end)
 
 -- in-game loading
 
-local Cfx_Wait = Citizen.Wait
-local Cfx_CreateThread = Citizen.CreateThread
 local IsModelValid = _ENV.IsModelValid
 local RequestModel = _ENV.RequestModel
-local GetGameTimer = _ENV.GetGameTimer
 local HasModelLoaded = _ENV.HasModelLoaded
-local GetTimeDifference = _ENV.GetTimeDifference
 local SetModelAsNoLongerNeeded = _ENV.SetModelAsNoLongerNeeded
 local DoesEntityExist = _ENV.DoesEntityExist
 local RequestCollisionAtCoord = _ENV.RequestCollisionAtCoord
@@ -217,7 +234,6 @@ function GetStringEntry(text)
   if not textkey then
     local texthash = GetHashKey(str_gsub(text, '(.)', hexreplacer))
     textkey = 'FW_TEXT_'..str_sub(str_format('%08x', texthash), -8)
-    print(textkey)
     AddTextEntry(textkey, text)
     text_cache[text] = textkey
   end
