@@ -104,18 +104,22 @@ local GetGameTimer = _ENV.GetGameTimer
 local HasModelLoaded = _ENV.HasModelLoaded
 local GetTimeDifference = _ENV.GetTimeDifference
 local SetModelAsNoLongerNeeded = _ENV.SetModelAsNoLongerNeeded
+local DoesEntityExist = _ENV.DoesEntityExist
+local RequestCollisionAtCoord = _ENV.RequestCollisionAtCoord
+local HasCollisionLoadedAroundEntity = _ENV.HasCollisionLoadedAroundEntity
 
 local function model_scheduler(callback, hash, timeout)
-  timeout = timeout or 1000
   return Cfx_CreateThread(function()
   	RequestModel(hash)
     local time = GetGameTimer()
   	while not HasModelLoaded(hash) do
   		RequestModel(hash)
   		Cfx_Wait(0)
-      local diff = GetTimeDifference(GetGameTimer(), time)
-      if timeout and timeout >= 0 and diff > timeout then
-        return callback(false)
+      if timeout and timeout >= 0 then
+        local diff = GetTimeDifference(GetGameTimer(), time)
+        if diff > timeout then
+          return callback(false)
+        end
       end
   	end
     callback(true)
@@ -128,3 +132,25 @@ function LoadModel(hash, ...)
   return HasModelLoaded(hash) or cor_yield(model_scheduler, hash, ...)
 end
 
+local function collision_scheduler(callback, entity, x, y, z, timeout)
+  return Cfx_CreateThread(function()
+    RequestCollisionAtCoord(x, y, z)
+    local time = GetGameTimer()
+    while not HasCollisionLoadedAroundEntity(entity) do
+      RequestCollisionAtCoord(x, y, z)
+      Cfx_Wait(0)
+      if timeout and timeout >= 0 then
+        local diff = GetTimeDifference(GetGameTimer(), time)
+        if diff > timeout then
+          return callback(false)
+        end
+      end
+    end
+    return callback(true)
+  end)
+end
+
+function LoadCollisionAroundEntity(entity, ...)
+  if not DoesEntityExist(entity) then return false end
+  return HasCollisionLoadedAroundEntity(entity) or cor_yield(collision_scheduler, entity, ...)
+end
