@@ -179,44 +179,35 @@ local function handle_result(status, ...)
   return ...
 end
 
-local function for_index(scheduler_factory)
-  return function(self, key)
+local function for_func(scheduler_factory)
+  return function(key)
     local scheduler = scheduler_factory(key)
-    local function caller(...)
-      return handle_result(cor_yield(scheduler, ...))
+    if scheduler then
+      return function(...)
+        return handle_result(cor_yield(scheduler, ...))
+      end
     end
-    rawset(self, key, caller)
-    return caller
   end
 end
 
 local func_patterns = {
-  ['ForPlayer$'] = setmetatable({}, {
-    __index = for_index(player_scheduler_factory)
-  }),
-  ['ForPlayerNoWait$'] = setmetatable({}, {
-    __index = for_index(player_scheduler_factory_no_wait)
-  }),
-  ['ForAll$'] = setmetatable({}, {
-    __index = for_index(all_scheduler_factory)
-  }),
-  ['ForGroup$'] = setmetatable({}, {
-    __index = for_index(group_scheduler_factory)
-  }),
-  ['ForOwner$'] = setmetatable({}, {
-    __index = for_index(owner_scheduler_factory)
-  }),
-  ['ForOwnerNoWait$'] = setmetatable({}, {
-    __index = for_index(owner_scheduler_factory_no_wait)
-  })
+  ['ForPlayer$'] = for_func(player_scheduler_factory),
+  ['ForPlayerNoWait$'] = for_func(player_scheduler_factory_no_wait),
+  ['ForAll$'] = for_func(all_scheduler_factory),
+  ['ForGroup$'] = for_func(group_scheduler_factory),
+  ['ForOwner$'] = for_func(owner_scheduler_factory),
+  ['ForOwnerNoWait$'] = for_func(owner_scheduler_factory_no_wait)
 }
 
 local function find_pattern_function(key)
-  for pattern, t in pairs(func_patterns) do
+  for pattern, proc in pairs(func_patterns) do
     local i, j = str_find(key, pattern)
     if i then
-      key = str_sub(key, 1, i - 1)..str_sub(key, j + 1)
-      return t[key]
+      local newkey = str_sub(key, 1, i - 1)..str_sub(key, j + 1)
+      local f = proc(newkey)
+      if f then
+        return f
+      end
     end
   end
 end
