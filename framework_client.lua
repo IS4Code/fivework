@@ -75,12 +75,12 @@ local frame_func_handlers = {}
 
 Cfx_CreateThread(function()
   while true do
-    for f, info in pairs(frame_func_handlers) do
-      local timeout, args = info[1], info[2] 
+    for key, info in pairs(frame_func_handlers) do
+      local f, timeout, args = info[1], info[2], info[3] 
       if timeout == true then
         pcall(f, t_unpack(args))
       elseif IsTimeMoreThan(GetGameTimer(), timeout) then
-        frame_func_handlers[f] = nil
+        frame_func_handlers[key] = nil
       else
         pcall(f, t_unpack(args))
       end
@@ -89,14 +89,14 @@ Cfx_CreateThread(function()
   end
 end)
 
-local function pack_frame_args(enable, ...)
+local function pack_frame_args(f, enable, ...)
   if enable then
     if type(enable) == 'number' then
-      return {GetTimeOffset(GetGameTimer(), enable), t_pack(...)}
+      return {f, GetTimeOffset(GetGameTimer(), enable), t_pack(...)}
     elseif enable == true then
-      return {true, t_pack(...)}
+      return {f, true, t_pack(...)}
     else
-      return {true, t_pack(enable, ...)}
+      return {f, true, t_pack(enable, ...)}
     end
   end
 end
@@ -107,21 +107,32 @@ local function replace_network_id(entity, ...)
   return NetworkGetNetworkIdFromEntity(entity), ...
 end
 
+local find_func
+
 local func_patterns = {
-  ['NetworkedArgument$'] = function(f)
-    return function(entity, ...)
+  ['NetworkedArgument$'] = function(name)
+    local f = find_func(name)
+    return f and function(entity, ...)
       entity = NetworkGetEntityFromNetworkId(entity)
       return f(entity, ...)
     end
   end,
-  ['NetworkedResult$'] = function(f)
-    return function(...)
+  ['NetworkedResult$'] = function(name)
+    local f = find_func(name)
+    return f and function(...)
       return replace_network_id(f(...))
+    end
+  end,
+  ['AtIndex$'] = function(name)
+    local f = find_func(name..'ThisFrame')
+    return f and function(key, ...)
+      frame_func_handlers[key] = pack_frame_args(f, ...)
+      return key
     end
   end
 }
 
-local function find_func(name)
+find_func = function(name)
   local f = _ENV[name]
   if f then
     return f
@@ -129,8 +140,8 @@ local function find_func(name)
   if not str_find(name, 'ThisFrame$') then
     f = find_func(name .. 'ThisFrame')
     if f then
-      return function(enable, ...)
-        frame_func_handlers[f] = pack_frame_args(enable, ...)
+      return function(...)
+        frame_func_handlers[f] = pack_frame_args(f, ...)
       end
     end
   end
@@ -138,9 +149,9 @@ local function find_func(name)
     local i, j = str_find(name, pattern)
     if i then
       local newname = str_sub(name, 1, i - 1)..str_sub(name, j + 1)
-      f = find_func(newname)
+      f = proc(newname)
       if f then
-        return proc(f)
+        return f
       end
     end
   end
