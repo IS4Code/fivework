@@ -35,8 +35,14 @@ local net_callback_handlers = {}
 
 -- callback configuration
 
-function FW_RegisterCallback(name, eventname, has_source, cancellable)
+function FW_RegisterCallback(name, eventname, has_source, cancellable, processor)
   callback_info[name] = function(handler)
+    if processor then
+      local handler_old = handler
+      handler = function(...)
+        return handler_old(processor(...))
+      end
+    end
     AddEventHandler(eventname, function(...)
       local result
       if has_source then
