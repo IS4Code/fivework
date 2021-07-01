@@ -103,7 +103,11 @@ local function find_func(name)
     f = find_func(name .. 'ThisFrame')
     if f then
       return function(enable, ...)
-        frame_func_handlers[f] = enable and t_pack(...) or nil
+        if enable and type(enable) ~= 'boolean' then
+          frame_func_handlers[f] = t_pack(enable, ...)
+        else
+          frame_func_handlers[f] = enable and t_pack(...) or nil
+        end
       end
     end
   end
