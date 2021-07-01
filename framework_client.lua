@@ -1,12 +1,20 @@
 -- imports
 
-local t_pack = table.pack
-local t_unpack_orig = table.unpack
 local pcall = _ENV.pcall
 local pairs = _ENV.pairs
+local ipairs = _ENV.ipairs
+local next = _ENV.next
+local tostring = _ENV.tostring
+local type = _ENV.type
+local m_type = math.type
+local t_pack = table.pack
+local t_unpack_orig = table.unpack
 local cor_yield = coroutine.yield
 local str_find = string.find
 local str_sub = string.sub
+local str_gsub = string.gsub
+local str_byte = string.byte
+local str_format = string.format
 
 local TriggerServerEvent = _ENV.TriggerServerEvent
 local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
@@ -128,7 +136,7 @@ AddEventHandler('fivework:ExecFunction', function(name, args, token)
   return FW_Async(remote_call, name, token, args)
 end)
 
--- in-game functions
+-- in-game loading
 
 local Cfx_Wait = Citizen.Wait
 local Cfx_CreateThread = Citizen.CreateThread
@@ -187,4 +195,66 @@ end
 function LoadCollisionAroundEntity(entity, ...)
   if not DoesEntityExist(entity) then return false end
   return HasCollisionLoadedAroundEntity(entity) or cor_yield(collision_scheduler, entity, ...)
+end
+
+-- text drawing
+
+local text_cache = {}
+
+local AddTextEntry = _ENV.AddTextEntry
+local GetHashKey = _ENV.GetHashKey
+
+local function hexreplacer(c)
+  return str_format('%x', str_byte(c))
+end
+
+function GetStringEntry(text)
+  local textkey = text_cache[text]
+  if not textkey then
+    local texthash = GetHashKey(str_gsub(text, '(.)', hexreplacer))
+    textkey = 'FW_TEXT_'..str_sub(str_format('%08x', texthash), -8)
+    print(textkey)
+    AddTextEntry(textkey, text)
+    text_cache[text] = textkey
+  end
+  return textkey
+end
+local GetStringEntry = _ENV.GetStringEntry
+
+local AddTextComponentSubstringPlayerName = _ENV.AddTextComponentSubstringPlayerName
+local AddTextComponentInteger = _ENV.AddTextComponentInteger
+local AddTextComponentFloat = _ENV.AddTextComponentFloat
+
+function DrawTextDataThisFrame(text, x, y, data)
+  local textkey = GetStringEntry(text)
+  BeginTextCommandDisplayText(textkey)
+  if data then
+    for field, value in pairs(data) do
+      if field == 'Components' then
+        for i, component in ipairs(value) do
+          if type(component) == 'string' then
+            AddTextComponentSubstringPlayerName(component)
+          elseif m_type(component) == 'integer' then
+            AddTextComponentInteger(component)
+          elseif m_type(component) == 'float' then
+            AddTextComponentFloat(component, 2)
+          elseif type(component) == 'table' then
+            local ctype, cvalue = next(component)
+            if type(cvalue) == 'table' then
+              _ENV['AddTextComponentSubstring'..ctype](t_unpack(cvalue))
+            else
+              _ENV['AddTextComponentSubstring'..ctype](cvalue)
+            end
+          else
+            AddTextComponentSubstringPlayerName(tostring(component))
+          end
+        end
+      elseif type(value) == 'table' then
+        _ENV['SetText'..field](t_unpack(value))
+      else
+        _ENV['SetText'..field](value)
+      end
+    end
+  end
+  return EndTextCommandDisplayText(x, y)
 end
