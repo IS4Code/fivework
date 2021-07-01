@@ -114,7 +114,7 @@ local function model_scheduler(callback, hash, timeout)
   		RequestModel(hash)
   		Cfx_Wait(0)
       local diff = GetTimeDifference(GetGameTimer(), time)
-      if diff > timeout then
+      if timeout and timeout >= 0 and diff > timeout then
         return callback(false)
       end
   	end
