@@ -61,11 +61,11 @@ function FW_RegisterCallback(name, eventname, cancellable, processor)
   end
 end
 
-function FW_RegisterNetCallback(name, eventname, args_replacer)
+function FW_RegisterNetCallback(name, eventname, processor)
   return AddEventHandler(eventname, function(...)
     local args
-    if args_replacer then
-      args = t_pack(args_replacer(...))
+    if processor then
+      args = t_pack(processor(...))
     else
       args = t_pack(...)
     end
