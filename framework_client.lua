@@ -270,36 +270,45 @@ local AddTextComponentSubstringPlayerName = _ENV.AddTextComponentSubstringPlayer
 local AddTextComponentInteger = _ENV.AddTextComponentInteger
 local AddTextComponentFloat = _ENV.AddTextComponentFloat
 
-function DrawTextDataThisFrame(text, x, y, data)
-  local textkey = GetStringEntry(text)
-  BeginTextCommandDisplayText(textkey)
-  if data then
-    for field, value in pairs(data) do
-      if field == 'Components' then
-        for i, component in ipairs(value) do
-          if type(component) == 'string' then
-            AddTextComponentSubstringPlayerName(component)
-          elseif m_type(component) == 'integer' then
-            AddTextComponentInteger(component)
-          elseif m_type(component) == 'float' then
-            AddTextComponentFloat(component, 2)
-          elseif type(component) == 'table' then
-            local ctype, cvalue = next(component)
-            if type(cvalue) == 'table' then
-              _ENV['AddTextComponentSubstring'..ctype](t_unpack(cvalue))
+local function text_formatter(beginFunc, endFunc)
+  return function(text, data, ...)
+    local textkey = GetStringEntry(text)
+    beginFunc(textkey)
+    if data then
+      for field, value in pairs(data) do
+        if field == 'Components' then
+          for i, component in ipairs(value) do
+            if type(component) == 'string' then
+              AddTextComponentSubstringPlayerName(component)
+            elseif m_type(component) == 'integer' then
+              AddTextComponentInteger(component)
+            elseif m_type(component) == 'float' then
+              AddTextComponentFloat(component, 2)
+            elseif type(component) == 'table' then
+              local ctype, cvalue = next(component)
+              if type(cvalue) == 'table' then
+                _ENV['AddTextComponentSubstring'..ctype](t_unpack(cvalue))
+              else
+                _ENV['AddTextComponentSubstring'..ctype](cvalue)
+              end
             else
-              _ENV['AddTextComponentSubstring'..ctype](cvalue)
+              AddTextComponentSubstringPlayerName(tostring(component))
             end
-          else
-            AddTextComponentSubstringPlayerName(tostring(component))
           end
+        elseif type(value) == 'table' then
+          _ENV['SetText'..field](t_unpack(value))
+        else
+          _ENV['SetText'..field](value)
         end
-      elseif type(value) == 'table' then
-        _ENV['SetText'..field](t_unpack(value))
-      else
-        _ENV['SetText'..field](value)
       end
     end
+    return endFunc(...)
   end
-  return EndTextCommandDisplayText(x, y)
 end
+
+DisplayTextThisFrame = text_formatter(BeginTextCommandDisplayText, EndTextCommandDisplayText)
+DisplayText = nil
+DisplayHelpThisFrame = text_formatter(BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp)
+DisplayHelp = nil
+ThefeedPostTickerThisFrame = text_formatter(BeginTextCommandThefeedPost, EndTextCommandThefeedPostTicker)
+ThefeedPostTicker = nil
