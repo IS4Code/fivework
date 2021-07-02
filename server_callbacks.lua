@@ -17,3 +17,17 @@ AddEventHandler('onResourceStart', function(resource)
     FW_TriggerCallback('OnScriptInit')
   end
 end)
+
+FW_RegisterNetCallback('OnPlayerDeath')
+
+RegisterServerEvent('baseevents:onPlayerDied')
+AddEventHandler('baseevents:onPlayerDied', function(killertype, killerpos)
+  FW_TriggerCallback('OnPlayerDeath', source, killertype, nil, killerpos, {})
+end)
+
+RegisterServerEvent('baseevents:onPlayerKilled')
+AddEventHandler('baseevents:onPlayerKilled', function(killerid, data)
+  local killertype, killerpos = data.killertype, data.killerpos
+  data.killertype, data.killerpos = nil, nil
+  FW_TriggerCallback('OnPlayerDeath', source, killertype, killerid, killerpos, data)
+end)
