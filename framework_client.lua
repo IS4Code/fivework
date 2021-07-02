@@ -42,8 +42,14 @@ end
 
 -- callback configuration
 
-function FW_RegisterCallback(name, eventname, cancellable)
+function FW_RegisterCallback(name, eventname, cancellable, processor)
   callback_info[name] = function(handler)
+    if processor then
+      local handler_old = handler
+      handler = function(...)
+        return handler_old(processor(...))
+      end
+    end
     AddEventHandler(eventname, function(...)
       if not handler(...) and cancellable then
         CancelEvent()
