@@ -160,7 +160,7 @@ local function iterator(obj)
   if type(obj) == 'table' then
     return ipairs(obj)
   elseif type(obj) == 'function' then
-    return obj
+    return obj()
   end
 end
 
