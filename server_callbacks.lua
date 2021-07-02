@@ -10,6 +10,7 @@ FW_RegisterServerCallback('OnPlayerEnterVehicle', 'baseevents:enteredVehicle', t
   return source, NetworkGetEntityFromNetworkId(networkid), seat, networkid, localid, modelkey, ...
 end)
 FW_RegisterNetCallback('OnPlayerInit')
+FW_RegisterNetCallback('OnPlayerSpawn')
 
 AddEventHandler('onResourceStart', function(resource)
   if resource == GetCurrentResourceName() then

@@ -1,3 +1,5 @@
+FW_RegisterNetCallback('OnPlayerSpawn', 'playerSpawned')
+
 AddEventHandler('onResourceStart', function(resource)
   if resource == GetCurrentResourceName() then
     FW_TriggerNetCallback('OnPlayerInit')

@@ -65,8 +65,14 @@ function FW_RegisterServerCallback(name, eventname, ...)
   return FW_RegisterCallback(name, eventname, ...)
 end
 
-function FW_RegisterNetCallback(name)
+function FW_RegisterNetCallback(name, processor)
   callback_info[name] = function(handler)
+    if processor then
+      local handler_old = handler
+      handler = function(...)
+        return handler_old(processor(...))
+      end
+    end
     net_callback_handlers[name] = handler
   end
 end
