@@ -25,6 +25,7 @@ local GetTimeOffset = _ENV.GetTimeOffset
 local IsTimeMoreThan = _ENV.IsTimeMoreThan
 local Cfx_Wait = Citizen.Wait
 local Cfx_CreateThread = Citizen.CreateThread
+local CancelEvent = _ENV.CancelEvent
 
 local FW_Async = _ENV.FW_Async
 
@@ -51,7 +52,8 @@ function FW_RegisterCallback(name, eventname, cancellable, processor)
       end
     end
     AddEventHandler(eventname, function(...)
-      if not handler(...) and cancellable then
+      local result = handler(...)
+      if cancellable and result == false then
         CancelEvent()
       end
     end)

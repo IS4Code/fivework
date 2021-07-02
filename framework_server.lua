@@ -50,7 +50,7 @@ function FW_RegisterCallback(name, eventname, has_source, cancellable, processor
       else
         result = handler(...)
       end
-      if cancellable and not result then
+      if cancellable and result == false then
         CancelEvent()
       end
     end)
