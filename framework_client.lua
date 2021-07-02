@@ -137,7 +137,13 @@ local func_patterns = {
       frame_func_handlers[key] = pack_frame_args(f, ...)
       return key
     end
-  end
+  end,
+  ['SwapFirstTwoArguments$'] = function(name)
+    local f = find_func(name)
+    return f and function(first, second, ...)
+      return f(second, first, ...)
+    end
+  end,
 }
 
 find_func = function(name)
