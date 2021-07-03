@@ -270,37 +270,46 @@ local AddTextComponentSubstringPlayerName = _ENV.AddTextComponentSubstringPlayer
 local AddTextComponentInteger = _ENV.AddTextComponentInteger
 local AddTextComponentFloat = _ENV.AddTextComponentFloat
 
+local function parse_text_data(data)
+  for field, value in pairs(data) do
+    if type(field) == 'string' then
+      if field == 'Components' then
+        for i, component in ipairs(value) do
+          if type(component) == 'string' then
+            AddTextComponentSubstringPlayerName(component)
+          elseif m_type(component) == 'integer' then
+            AddTextComponentInteger(component)
+          elseif m_type(component) == 'float' then
+            AddTextComponentFloat(component, 2)
+          elseif type(component) == 'table' then
+            local ctype, cvalue = next(component)
+            if type(cvalue) == 'table' then
+              _ENV['AddTextComponentSubstring'..ctype](t_unpack(cvalue))
+            else
+              _ENV['AddTextComponentSubstring'..ctype](cvalue)
+            end
+          else
+            AddTextComponentSubstringPlayerName(tostring(component))
+          end
+        end
+      elseif type(value) == 'table' then
+        _ENV['SetText'..field](t_unpack(value))
+      else
+        _ENV['SetText'..field](value)
+      end
+    end
+  end
+end
+
 local function text_formatter(beginFunc, endFunc)
   return function(text, data, ...)
     local textkey = GetStringEntry(text)
     beginFunc(textkey)
     if data then
-      for field, value in pairs(data) do
-        if field == 'Components' then
-          for i, component in ipairs(value) do
-            if type(component) == 'string' then
-              AddTextComponentSubstringPlayerName(component)
-            elseif m_type(component) == 'integer' then
-              AddTextComponentInteger(component)
-            elseif m_type(component) == 'float' then
-              AddTextComponentFloat(component, 2)
-            elseif type(component) == 'table' then
-              local ctype, cvalue = next(component)
-              if type(cvalue) == 'table' then
-                _ENV['AddTextComponentSubstring'..ctype](t_unpack(cvalue))
-              else
-                _ENV['AddTextComponentSubstring'..ctype](cvalue)
-              end
-            else
-              AddTextComponentSubstringPlayerName(tostring(component))
-            end
-          end
-        elseif type(value) == 'table' then
-          _ENV['SetText'..field](t_unpack(value))
-        else
-          _ENV['SetText'..field](value)
-        end
-      end
+      for i, data_inner in ipairs(data) do
+        parse_text_data(data_inner)
+      end 
+      parse_text_data(data)
     end
     return endFunc(...)
   end
