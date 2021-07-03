@@ -280,6 +280,7 @@ local GetStringEntry = _ENV.GetStringEntry
 
 local AddTextComponentSubstringPlayerName = _ENV.AddTextComponentSubstringPlayerName
 local AddTextComponentInteger = _ENV.AddTextComponentInteger
+local AddTextComponentFormattedInteger = _ENV.AddTextComponentFormattedInteger
 local AddTextComponentFloat = _ENV.AddTextComponentFloat
 
 local function unpack_cond(value)
@@ -307,7 +308,11 @@ local function parse_text_data(data)
           elseif type(primary) == 'string' then
             AddTextComponentSubstringPlayerName(t_unpack(component))
           elseif m_type(primary) == 'integer' then
-            AddTextComponentInteger(t_unpack(component))
+            if component[2] ~= nil then
+              AddTextComponentFormattedInteger(t_unpack(component))
+            else
+              AddTextComponentInteger(t_unpack(component))
+            end
           elseif m_type(primary) == 'float' then
             AddTextComponentFloat(t_unpack(component))
           else
