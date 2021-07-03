@@ -282,32 +282,40 @@ local AddTextComponentSubstringPlayerName = _ENV.AddTextComponentSubstringPlayer
 local AddTextComponentInteger = _ENV.AddTextComponentInteger
 local AddTextComponentFloat = _ENV.AddTextComponentFloat
 
+local function unpack_cond(value)
+  if type(value) == 'table' then
+    return t_unpack(value)
+  else
+    return value
+  end
+end
+
 local function parse_text_data(data)
   for field, value in pairs(data) do
     if type(field) == 'string' then
       if field == 'Components' then
         for i, component in ipairs(value) do
-          if type(component) == 'string' then
-            AddTextComponentSubstringPlayerName(component)
-          elseif m_type(component) == 'integer' then
-            AddTextComponentInteger(component)
-          elseif m_type(component) == 'float' then
-            AddTextComponentFloat(component, 2)
-          elseif type(component) == 'table' then
+          if type(component) ~= 'table' then
+            component = {component}
+          end
+          local primary = component[1]
+          if primary == nil then
             local ctype, cvalue = next(component)
-            if type(cvalue) == 'table' then
-              _ENV['AddTextComponentSubstring'..ctype](t_unpack(cvalue))
-            else
-              _ENV['AddTextComponentSubstring'..ctype](cvalue)
+            if ctype then
+              _ENV['AddTextComponentSubstring'..ctype](unpack_cond(cvalue))
             end
+          elseif type(primary) == 'string' then
+            AddTextComponentSubstringPlayerName(t_unpack(component))
+          elseif m_type(primary) == 'integer' then
+            AddTextComponentInteger(t_unpack(component))
+          elseif m_type(primary) == 'float' then
+            AddTextComponentFloat(t_unpack(component))
           else
-            AddTextComponentSubstringPlayerName(tostring(component))
+            AddTextComponentSubstringPlayerName(tostring(primary))
           end
         end
-      elseif type(value) == 'table' then
-        _ENV['SetText'..field](t_unpack(value))
       else
-        _ENV['SetText'..field](value)
+        _ENV['SetText'..field](unpack_cond(value))
       end
     end
   end
@@ -329,7 +337,6 @@ end
 
 DisplayTextThisFrame = text_formatter(BeginTextCommandDisplayText, EndTextCommandDisplayText)
 DisplayText = nil
-DisplayHelpThisFrame = text_formatter(BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp)
-DisplayHelp = nil
-ThefeedPostTickerThisFrame = text_formatter(BeginTextCommandThefeedPost, EndTextCommandThefeedPostTicker)
-ThefeedPostTicker = nil
+DisplayHelp = text_formatter(BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp)
+ThefeedPostTicker = text_formatter(BeginTextCommandThefeedPost, EndTextCommandThefeedPostTicker)
+
