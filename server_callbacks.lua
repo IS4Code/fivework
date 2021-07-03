@@ -9,6 +9,9 @@ FW_RegisterCallback('OnIncomingConnection', 'playerConnecting', nil, true)
 FW_RegisterServerCallback('OnPlayerEnterVehicle', 'baseevents:enteredVehicle', true, nil, function(source, localid, seat, modelkey, networkid, ...)
   return source, NetworkGetEntityFromNetworkId(networkid), seat, networkid, localid, modelkey, ...
 end)
+FW_RegisterServerCallback('OnPlayerExitVehicle', 'baseevents:leftVehicle', true, nil, function(source, localid, seat, modelkey, networkid, ...)
+  return source, NetworkGetEntityFromNetworkId(networkid), seat, networkid, localid, modelkey, ...
+end)
 FW_RegisterNetCallback('OnPlayerInit')
 FW_RegisterNetCallback('OnPlayerSpawn')
 
