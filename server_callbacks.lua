@@ -1,4 +1,5 @@
 local NetworkGetEntityFromNetworkId = _ENV.NetworkGetEntityFromNetworkId
+local t_unpack = table.unpack
 
 FW_RegisterCallback('OnEntityCreated', 'entityCreated')
 FW_RegisterCallback('OnEntityCreating', 'entityCreating', nil, true)
@@ -14,6 +15,9 @@ FW_RegisterServerCallback('OnPlayerExitVehicle', 'baseevents:leftVehicle', true,
 end)
 FW_RegisterNetCallback('OnPlayerInit')
 FW_RegisterNetCallback('OnPlayerSpawn')
+FW_RegisterNetCallback('OnGameEvent', function(source, name, args)
+  return source, name, t_unpack(args)
+end)
 
 FW_RegisterCallback('OnPlayerText', 'chatMessage', false, true, function(source, author, message, ...)
   return source, message, author, ...
