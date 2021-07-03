@@ -9,6 +9,7 @@ local type = _ENV.type
 local m_type = math.type
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
+local t_concat = table.concat
 local cor_yield = coroutine.yield
 local str_find = string.find
 local str_sub = string.sub
@@ -248,6 +249,7 @@ end
 local text_cache = {}
 
 local AddTextEntry = _ENV.AddTextEntry
+local GetLabelText = _ENV.GetLabelText
 local GetHashKey = _ENV.GetHashKey
 
 local function hexreplacer(c)
@@ -255,6 +257,16 @@ local function hexreplacer(c)
 end
 
 function GetStringEntry(text)
+  if type(text) == 'table' then
+    if #text == 1 then
+      return text[1]
+    end
+    local labels = {}
+    for i, label in ipairs(text) do
+      labels[i] = GetLabelText(label)
+    end
+    return GetStringEntry(t_concat(labels, text.sep))
+  end
   local textkey = text_cache[text]
   if not textkey then
     local texthash = GetHashKey(str_gsub(text, '(.)', hexreplacer))
@@ -308,7 +320,7 @@ local function text_formatter(beginFunc, endFunc)
     if data then
       for i, data_inner in ipairs(data) do
         parse_text_data(data_inner)
-      end 
+      end
       parse_text_data(data)
     end
     return endFunc(...)
