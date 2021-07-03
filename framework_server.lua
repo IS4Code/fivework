@@ -256,7 +256,13 @@ function SendClientMessage(playerid, color, message)
   if type(color) == 'number' then
     color = hexcolor(color)
   end
-  return TriggerClientEvent('chat:addMessage', playerid, {color = color, multiline = true, args = message})
+  local info = {color = color, multiline = true, args = {t_unpack(message)}}
+  for k, v in pairs(message) do
+    if type(k) ~= 'number' then
+      info[k] = v
+    end
+  end
+  return TriggerClientEvent('chat:addMessage', playerid, info)
 end
 
 local SendClientMessage = _ENV.SendClientMessage
