@@ -18,6 +18,7 @@ FW_RegisterNetCallback('OnPlayerSpawn')
 FW_RegisterNetCallback('OnGameEvent', function(source, name, args)
   return source, name, t_unpack(args)
 end)
+FW_RegisterNetCallback('OnPlayerKeyStateChange')
 
 FW_RegisterCallback('OnPlayerText', 'chatMessage', false, true, function(source, author, message, ...)
   return source, message, author, ...

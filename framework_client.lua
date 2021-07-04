@@ -77,6 +77,7 @@ end
 function FW_TriggerNetCallback(name, ...)
   return TriggerServerEvent('fivework:ClientCallback', name, t_pack(...))
 end
+local FW_TriggerNetCallback = _ENV.FW_TriggerNetCallback
 
 -- frame handlers
 
@@ -345,3 +346,42 @@ DisplayText = nil
 DisplayHelp = text_formatter(BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp)
 ThefeedPostTicker = text_formatter(BeginTextCommandThefeedPost, EndTextCommandThefeedPostTicker)
 
+-- keys
+
+local IsControlJustPressed = _ENV.IsControlJustPressed
+local IsControlJustReleased = _ENV.IsControlJustReleased
+
+local registered_controls = {}
+
+function FW_RegisterControlKey(controller, key)
+  if not key then
+    controller, key = 0, controller
+  end
+  registered_controls[controller..'.'..key] = t_pack(controller, key)
+end
+
+function FW_UnregisterControlKey(controller, key)
+  if not key then
+    controller, key = 0, controller
+  end
+  registered_controls[controller..'.'..key] = nil
+end
+
+Cfx_CreateThread(function()
+  while true do
+    local pressed = {}
+    local released = {}
+    for k, info in pairs(registered_controls) do
+      if IsControlJustPressed(t_unpack(info)) then
+        pressed[info[2]] = info[1]
+      end
+      if IsControlJustReleased(t_unpack(info)) then
+        released[info[2]] = info[1]
+      end
+    end
+    if next(pressed) or next(released) then
+      FW_TriggerNetCallback('OnPlayerKeyStateChange', pressed, released)
+    end
+    Cfx_Wait(0)
+  end
+end)
