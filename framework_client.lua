@@ -447,7 +447,8 @@ do
   local registered_updates = {}
   
   function FW_RegisterUpdate(fname, ...)
-    local value = _ENV[fname](...)
+    local func = _ENV[fname]
+    local value = func and func(...)
     registered_updates[j_encode(t_pack(fname, ...))] = t_pack(value, fname, ...)
   end
   
@@ -459,11 +460,14 @@ do
     while true do
       local updates = {}
       for k, info in pairs(registered_updates) do
-        local newvalue = _ENV[info[2]](t_unpack(info, 3))
-        local oldvalue = info[1]
-        if oldvalue ~= newvalue then
-          info[1] = newvalue
-          updates[t_pack(t_unpack(info, 2))] = {newvalue, oldvalue}
+        local func = _ENV[info[2]]
+        if func then
+          local newvalue = func(t_unpack(info, 3))
+          local oldvalue = info[1]
+          if oldvalue ~= newvalue then
+            info[1] = newvalue
+            updates[t_pack(t_unpack(info, 2))] = {newvalue, oldvalue}
+          end
         end
       end
       if next(updates) then
