@@ -177,9 +177,6 @@ do
         local func = find_func(key)
         rawset(self, key, func)
         return func
-      end,
-      __newindex = function(self, key, value)
-        _ENV[key] = value
       end
     })
     
