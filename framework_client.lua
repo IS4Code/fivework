@@ -5,7 +5,10 @@ local pairs = _ENV.pairs
 local ipairs = _ENV.ipairs
 local next = _ENV.next
 local tostring = _ENV.tostring
+local load = _ENV.load
 local type = _ENV.type
+local assert = _ENV.assert
+local rawset = _ENV.rawset
 local m_type = math.type
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
@@ -16,6 +19,7 @@ local str_sub = string.sub
 local str_gsub = string.gsub
 local str_byte = string.byte
 local str_format = string.format
+local str_rep = string.rep
 
 local TriggerServerEvent = _ENV.TriggerServerEvent
 local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
@@ -27,12 +31,27 @@ local IsTimeMoreThan = _ENV.IsTimeMoreThan
 local Cfx_Wait = Citizen.Wait
 local Cfx_CreateThread = Citizen.CreateThread
 local CancelEvent = _ENV.CancelEvent
+local GetHashKey = _ENV.GetHashKey
 
 local FW_Async = _ENV.FW_Async
 
 local function t_unpack(t)
   return t_unpack_orig(t, 1, t.n)
 end
+
+do
+  local function char_replacer(c)
+    if str_sub(c, -1) ~= ' ' then
+      return str_rep('\t', #c - 1)..str_format('%%%02x', str_byte(c, -1))
+    end
+    return str_rep('\t', #c)
+  end
+  
+  function GetStringHash(text)
+    return GetHashKey(str_gsub(text, ' *[%% A-Z]', char_replacer))
+  end
+end
+local GetStringHash = _ENV.GetStringHash
 
 -- internal
 
@@ -148,7 +167,33 @@ local func_patterns = {
   end,
 }
 
+local script_environment = setmetatable({}, {
+  __index = function(self, key)
+    local func = find_func(key)
+    rawset(self, key, func)
+    return func
+  end,
+  __newindex = function(self, key, value)
+    _ENV[key] = value
+  end
+})
+
+local script_cache = {}
+
+local function do_script(chunk, ...)
+  local hash = GetStringHash(chunk)
+  local script = script_cache[hash]
+  if not script then
+    script = assert(load(chunk, '=(load)', nil, script_environment))
+    script_cache[hash] = script
+  end
+  return script(...)
+end
+
 find_func = function(name)
+  if name == 'DoScript' then
+    return do_script
+  end
   local f = _ENV[name]
   if f then
     return f
@@ -251,11 +296,6 @@ local text_cache = {}
 
 local AddTextEntry = _ENV.AddTextEntry
 local GetLabelText = _ENV.GetLabelText
-local GetHashKey = _ENV.GetHashKey
-
-local function hexreplacer(c)
-  return str_format('%x', str_byte(c))
-end
 
 function GetStringEntry(text)
   if type(text) == 'table' then
@@ -270,7 +310,7 @@ function GetStringEntry(text)
   end
   local textkey = text_cache[text]
   if not textkey then
-    local texthash = GetHashKey(str_gsub(text, '(.)', hexreplacer))
+    local texthash = GetStringHash(text)
     textkey = 'FW_TEXT_'..str_sub(str_format('%08x', texthash), -8)
     AddTextEntry(textkey, text)
     text_cache[text] = textkey
