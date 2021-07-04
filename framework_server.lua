@@ -19,8 +19,8 @@ local tostring = _ENV.tostring
 local CancelEvent = _ENV.CancelEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent
 
-local function t_unpack(t)
-  return t_unpack_orig(t, 1, t.n)
+local function t_unpack(t, i)
+  return t_unpack_orig(t, i or 1, t.n)
 end
 
 local function iterator(obj)

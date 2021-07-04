@@ -31,6 +31,7 @@ AddEventHandler('onResourceStart', function(resource)
 end)
 
 FW_RegisterNetCallback('OnPlayerDeath')
+FW_RegisterNetCallback('OnPlayerUpdate')
 
 RegisterServerEvent('baseevents:onPlayerDied')
 AddEventHandler('baseevents:onPlayerDied', function(killertype, killerpos)

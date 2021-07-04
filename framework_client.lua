@@ -13,6 +13,7 @@ local m_type = math.type
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local t_concat = table.concat
+local t_insert = table.insert
 local cor_yield = coroutine.yield
 local str_find = string.find
 local str_sub = string.sub
@@ -20,6 +21,7 @@ local str_gsub = string.gsub
 local str_byte = string.byte
 local str_format = string.format
 local str_rep = string.rep
+local j_encode = json.encode
 
 local TriggerServerEvent = _ENV.TriggerServerEvent
 local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
@@ -35,8 +37,8 @@ local GetHashKey = _ENV.GetHashKey
 
 local FW_Async = _ENV.FW_Async
 
-local function t_unpack(t)
-  return t_unpack_orig(t, 1, t.n)
+local function t_unpack(t, i)
+  return t_unpack_orig(t, i or 1, t.n)
 end
 
 do
@@ -410,14 +412,15 @@ do
     if not key then
       controller, key = 0, controller
     end
-    registered_controls[controller..'.'..key] = t_pack(controller, key)
+    local data = {controller, key}
+    registered_controls[j_encode(data)] = data
   end
   
   function FW_UnregisterControlKey(controller, key)
     if not key then
       controller, key = 0, controller
     end
-    registered_controls[controller..'.'..key] = nil
+    registered_controls[j_encode{controller, key}] = nil
   end
   
   Cfx_CreateThread(function()
@@ -434,6 +437,37 @@ do
       end
       if next(pressed) or next(released) then
         FW_TriggerNetCallback('OnPlayerKeyStateChange', pressed, released)
+      end
+      Cfx_Wait(0)
+    end
+  end)
+end
+
+do
+  local registered_updates = {}
+  
+  function FW_RegisterUpdate(fname, ...)
+    local value = _ENV[fname](...)
+    registered_updates[j_encode(t_pack(fname, ...))] = t_pack(value, fname, ...)
+  end
+  
+  function FW_UnregisterUpdate(fname, ...)
+    registered_updates[j_encode(t_pack(fname, ...))] = nil
+  end
+  
+  Cfx_CreateThread(function()
+    while true do
+      local updates = {}
+      for k, info in pairs(registered_updates) do
+        local newvalue = _ENV[info[2]](t_unpack(info, 3))
+        local oldvalue = info[1]
+        if oldvalue ~= newvalue then
+          info[1] = newvalue
+          updates[t_pack(t_unpack(info, 2))] = {newvalue, oldvalue}
+        end
+      end
+      if next(updates) then
+        FW_TriggerNetCallback('OnPlayerUpdate', updates)
       end
       Cfx_Wait(0)
     end
