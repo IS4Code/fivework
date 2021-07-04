@@ -55,31 +55,33 @@ local GetStringHash = _ENV.GetStringHash
 
 -- internal
 
-local callback_info = {}
-
-function FW_CreateCallbackHandler(name, handler)
-  return callback_info[name](handler)
-end
-
--- callback configuration
-
-function FW_RegisterCallback(name, eventname, cancellable, processor)
-  callback_info[name] = function(handler)
-    if processor then
-      local handler_old = handler
-      handler = function(...)
-        return handler_old(processor(...))
-      end
-    end
-    AddEventHandler(eventname, function(...)
-      local result = handler(...)
-      if cancellable and result == false then
-        CancelEvent()
-      end
-    end)
-    return true
+do
+  local callback_info = {}
+  
+  function FW_CreateCallbackHandler(name, handler)
+    return callback_info[name](handler)
   end
-end
+  
+-- callback configuration
+  
+  function FW_RegisterCallback(name, eventname, cancellable, processor)
+    callback_info[name] = function(handler)
+      if processor then
+        local handler_old = handler
+        handler = function(...)
+          return handler_old(processor(...))
+        end
+      end
+      AddEventHandler(eventname, function(...)
+        local result = handler(...)
+        if cancellable and result == false then
+          CancelEvent()
+        end
+      end)
+      return true
+    end
+  end
+end  
 
 function FW_RegisterNetCallback(name, eventname, processor)
   return AddEventHandler(eventname, function(...)
@@ -132,106 +134,111 @@ end
 
 -- remote execution
 
-local function replace_network_id(entity, ...)
-  return NetworkGetNetworkIdFromEntity(entity), ...
-end
-
-local find_func
-
-local func_patterns = {
-  ['NetworkedArgument$'] = function(name)
-    local f = find_func(name)
-    return f and function(entity, ...)
-      entity = NetworkGetEntityFromNetworkId(entity)
-      return f(entity, ...)
-    end
-  end,
-  ['NetworkedResult$'] = function(name)
-    local f = find_func(name)
-    return f and function(...)
-      return replace_network_id(f(...))
-    end
-  end,
-  ['AtIndex$'] = function(name)
-    local f = find_func(name..'ThisFrame')
-    return f and function(key, ...)
-      frame_func_handlers[key] = pack_frame_args(f, ...)
-      return key
-    end
-  end,
-  ['SwapFirstTwoArguments$'] = function(name)
-    local f = find_func(name)
-    return f and function(first, second, ...)
-      return f(second, first, ...)
-    end
-  end,
-}
-
-local script_environment = setmetatable({}, {
-  __index = function(self, key)
-    local func = find_func(key)
-    rawset(self, key, func)
-    return func
-  end,
-  __newindex = function(self, key, value)
-    _ENV[key] = value
+do
+  local function replace_network_id(entity, ...)
+    return NetworkGetNetworkIdFromEntity(entity), ...
   end
-})
-
-local script_cache = {}
-
-local function do_script(chunk, ...)
-  local hash = GetStringHash(chunk)
-  local script = script_cache[hash]
-  if not script then
-    script = assert(load(chunk, '=(load)', nil, script_environment))
-    script_cache[hash] = script
+  
+  local find_func
+  
+  local func_patterns = {
+    ['NetworkedArgument$'] = function(name)
+      local f = find_func(name)
+      return f and function(entity, ...)
+        entity = NetworkGetEntityFromNetworkId(entity)
+        return f(entity, ...)
+      end
+    end,
+    ['NetworkedResult$'] = function(name)
+      local f = find_func(name)
+      return f and function(...)
+        return replace_network_id(f(...))
+      end
+    end,
+    ['AtIndex$'] = function(name)
+      local f = find_func(name..'ThisFrame')
+      return f and function(key, ...)
+        frame_func_handlers[key] = pack_frame_args(f, ...)
+        return key
+      end
+    end,
+    ['SwapFirstTwoArguments$'] = function(name)
+      local f = find_func(name)
+      return f and function(first, second, ...)
+        return f(second, first, ...)
+      end
+    end,
+  }
+  
+  local do_script
+  do
+    local script_environment = setmetatable({}, {
+      __index = function(self, key)
+        local func = find_func(key)
+        rawset(self, key, func)
+        return func
+      end,
+      __newindex = function(self, key, value)
+        _ENV[key] = value
+      end
+    })
+    
+    local script_cache = {}
+    
+    do_script = function(chunk, ...)
+      local hash = GetStringHash(chunk)
+      local script = script_cache[hash]
+      if not script then
+        script = assert(load(chunk, '=(load)', nil, script_environment))
+        script_cache[hash] = script
+      end
+      return script(...)
+    end
   end
-  return script(...)
-end
-
-find_func = function(name)
-  if name == 'DoScript' then
-    return do_script
-  end
-  local f = _ENV[name]
-  if f then
-    return f
-  end
-  if not str_find(name, 'ThisFrame$') then
-    f = find_func(name .. 'ThisFrame')
+  
+  find_func = function(name)
+    if name == 'DoScript' then
+      return do_script
+    end
+    local f = _ENV[name]
     if f then
-      return function(...)
-        frame_func_handlers[f] = pack_frame_args(f, ...)
-      end
+      return f
     end
-  end
-  for pattern, proc in pairs(func_patterns) do
-    local i, j = str_find(name, pattern)
-    if i then
-      local newname = str_sub(name, 1, i - 1)..str_sub(name, j + 1)
-      f = proc(newname)
+    if not str_find(name, 'ThisFrame$') then
+      f = find_func(name .. 'ThisFrame')
       if f then
-        return f
+        return function(...)
+          frame_func_handlers[f] = pack_frame_args(f, ...)
+        end
+      end
+    end
+    for pattern, proc in pairs(func_patterns) do
+      local i, j = str_find(name, pattern)
+      if i then
+        local newname = str_sub(name, 1, i - 1)..str_sub(name, j + 1)
+        f = proc(newname)
+        if f then
+          return f
+        end
       end
     end
   end
-end
-
-local function process_call(token, status, ...)
-  if token or not status then
-    return TriggerServerEvent('fivework:ExecFunctionResult', status, t_pack(...), token)
+  
+  local function process_call(token, status, ...)
+    if token or not status then
+      return TriggerServerEvent('fivework:ExecFunctionResult', status, t_pack(...), token)
+    end
   end
-end
-
-local function remote_call(name, token, args)
-  return process_call(token, pcall(find_func(name), t_unpack(args)))
-end
-
-RegisterNetEvent('fivework:ExecFunction')
-AddEventHandler('fivework:ExecFunction', function(name, args, token)
-  return FW_Async(remote_call, name, token, args)
-end)
+  
+  local function remote_call(name, token, args)
+    return process_call(token, pcall(find_func(name), t_unpack(args)))
+  end
+  
+  RegisterNetEvent('fivework:ExecFunction')
+  AddEventHandler('fivework:ExecFunction', function(name, args, token)
+    return FW_Async(remote_call, name, token, args)
+  end)
+end  
 
 -- in-game loading
 
@@ -243,79 +250,85 @@ local DoesEntityExist = _ENV.DoesEntityExist
 local RequestCollisionAtCoord = _ENV.RequestCollisionAtCoord
 local HasCollisionLoadedAroundEntity = _ENV.HasCollisionLoadedAroundEntity
 
-local function model_scheduler(callback, hash, timeout)
-  return Cfx_CreateThread(function()
-  	RequestModel(hash)
-    local time = GetGameTimer()
-  	while not HasModelLoaded(hash) do
-  		RequestModel(hash)
-  		Cfx_Wait(0)
-      if timeout and timeout >= 0 then
-        local diff = GetTimeDifference(GetGameTimer(), time)
-        if diff > timeout then
-          return callback(false)
+do
+  local function model_scheduler(callback, hash, timeout)
+    return Cfx_CreateThread(function()
+    	RequestModel(hash)
+      local time = GetGameTimer()
+    	while not HasModelLoaded(hash) do
+    		RequestModel(hash)
+    		Cfx_Wait(0)
+        if timeout and timeout >= 0 then
+          local diff = GetTimeDifference(GetGameTimer(), time)
+          if diff > timeout then
+            return callback(false)
+          end
         end
-      end
-  	end
-    callback(true)
-    SetModelAsNoLongerNeeded(hash)
-  end)
+    	end
+      callback(true)
+      SetModelAsNoLongerNeeded(hash)
+    end)
+  end
+  
+  function LoadModel(hash, ...)
+    if not IsModelValid(hash) then return false end
+    return HasModelLoaded(hash) or cor_yield(model_scheduler, hash, ...)
+  end
 end
 
-function LoadModel(hash, ...)
-  if not IsModelValid(hash) then return false end
-  return HasModelLoaded(hash) or cor_yield(model_scheduler, hash, ...)
-end
-
-local function collision_scheduler(callback, entity, x, y, z, timeout)
-  return Cfx_CreateThread(function()
-    RequestCollisionAtCoord(x, y, z)
-    local time = GetGameTimer()
-    while not HasCollisionLoadedAroundEntity(entity) do
+do
+  local function collision_scheduler(callback, entity, x, y, z, timeout)
+    return Cfx_CreateThread(function()
       RequestCollisionAtCoord(x, y, z)
-      Cfx_Wait(0)
-      if timeout and timeout >= 0 then
-        local diff = GetTimeDifference(GetGameTimer(), time)
-        if diff > timeout then
-          return callback(false)
+      local time = GetGameTimer()
+      while not HasCollisionLoadedAroundEntity(entity) do
+        RequestCollisionAtCoord(x, y, z)
+        Cfx_Wait(0)
+        if timeout and timeout >= 0 then
+          local diff = GetTimeDifference(GetGameTimer(), time)
+          if diff > timeout then
+            return callback(false)
+          end
         end
       end
-    end
-    return callback(true)
-  end)
-end
-
-function LoadCollisionAroundEntity(entity, ...)
-  if not DoesEntityExist(entity) then return false end
-  return HasCollisionLoadedAroundEntity(entity) or cor_yield(collision_scheduler, entity, ...)
+      return callback(true)
+    end)
+  end
+  
+  function LoadCollisionAroundEntity(entity, ...)
+    if not DoesEntityExist(entity) then return false end
+    return HasCollisionLoadedAroundEntity(entity) or cor_yield(collision_scheduler, entity, ...)
+  end
 end
 
 -- text drawing
 
-local text_cache = {}
-
 local AddTextEntry = _ENV.AddTextEntry
 local GetLabelText = _ENV.GetLabelText
 
-function GetStringEntry(text)
-  if type(text) == 'table' then
-    if #text == 1 then
-      return text[1]
+do
+  local text_cache = {}
+  
+  function GetStringEntry(text)
+    if type(text) == 'table' then
+      if #text == 1 then
+        return text[1]
+      end
+      local labels = {}
+      for i, label in ipairs(text) do
+        labels[i] = GetLabelText(label)
+      end
+      return GetStringEntry(t_concat(labels, text.sep))
     end
-    local labels = {}
-    for i, label in ipairs(text) do
-      labels[i] = GetLabelText(label)
+    local textkey = text_cache[text]
+    if not textkey then
+      local texthash = GetStringHash(text)
+      textkey = 'FW_TEXT_'..str_sub(str_format('%08x', texthash), -8)
+      AddTextEntry(textkey, text)
+      text_cache[text] = textkey
     end
-    return GetStringEntry(t_concat(labels, text.sep))
+    return textkey
   end
-  local textkey = text_cache[text]
-  if not textkey then
-    local texthash = GetStringHash(text)
-    textkey = 'FW_TEXT_'..str_sub(str_format('%08x', texthash), -8)
-    AddTextEntry(textkey, text)
-    text_cache[text] = textkey
-  end
-  return textkey
 end
 local GetStringEntry = _ENV.GetStringEntry
 
@@ -324,104 +337,108 @@ local AddTextComponentInteger = _ENV.AddTextComponentInteger
 local AddTextComponentFormattedInteger = _ENV.AddTextComponentFormattedInteger
 local AddTextComponentFloat = _ENV.AddTextComponentFloat
 
-local function unpack_cond(value)
-  if type(value) == 'table' then
-    return t_unpack(value)
-  else
-    return value
+do
+  local function unpack_cond(value)
+    if type(value) == 'table' then
+      return t_unpack(value)
+    else
+      return value
+    end
   end
-end
-
-local function parse_text_data(data)
-  for field, value in pairs(data) do
-    if type(field) == 'string' then
-      if field == 'Components' then
-        for i, component in ipairs(value) do
-          if type(component) ~= 'table' then
-            component = {component}
-          end
-          local primary = component[1]
-          if primary == nil then
-            local ctype, cvalue = next(component)
-            if ctype then
-              _ENV['AddTextComponentSubstring'..ctype](unpack_cond(cvalue))
+  
+  local function parse_text_data(data)
+    for field, value in pairs(data) do
+      if type(field) == 'string' then
+        if field == 'Components' then
+          for i, component in ipairs(value) do
+            if type(component) ~= 'table' then
+              component = {component}
             end
-          elseif type(primary) == 'string' then
-            AddTextComponentSubstringPlayerName(t_unpack(component))
-          elseif m_type(primary) == 'integer' then
-            if component[2] ~= nil then
-              AddTextComponentFormattedInteger(t_unpack(component))
+            local primary = component[1]
+            if primary == nil then
+              local ctype, cvalue = next(component)
+              if ctype then
+                _ENV['AddTextComponentSubstring'..ctype](unpack_cond(cvalue))
+              end
+            elseif type(primary) == 'string' then
+              AddTextComponentSubstringPlayerName(t_unpack(component))
+            elseif m_type(primary) == 'integer' then
+              if component[2] ~= nil then
+                AddTextComponentFormattedInteger(t_unpack(component))
+              else
+                AddTextComponentInteger(t_unpack(component))
+              end
+            elseif m_type(primary) == 'float' then
+              AddTextComponentFloat(t_unpack(component))
             else
-              AddTextComponentInteger(t_unpack(component))
+              AddTextComponentSubstringPlayerName(tostring(primary))
             end
-          elseif m_type(primary) == 'float' then
-            AddTextComponentFloat(t_unpack(component))
-          else
-            AddTextComponentSubstringPlayerName(tostring(primary))
           end
+        else
+          _ENV['SetText'..field](unpack_cond(value))
         end
-      else
-        _ENV['SetText'..field](unpack_cond(value))
       end
     end
   end
-end
-
-local function text_formatter(beginFunc, endFunc)
-  return function(text, data, ...)
-    local textkey = GetStringEntry(text)
-    beginFunc(textkey)
-    if data then
-      for i, data_inner in ipairs(data) do
-        parse_text_data(data_inner)
+  
+  local function text_formatter(beginFunc, endFunc)
+    return function(text, data, ...)
+      local textkey = GetStringEntry(text)
+      beginFunc(textkey)
+      if data then
+        for i, data_inner in ipairs(data) do
+          parse_text_data(data_inner)
+        end
+        parse_text_data(data)
       end
-      parse_text_data(data)
+      return endFunc(...)
     end
-    return endFunc(...)
   end
+  
+  DisplayTextThisFrame = text_formatter(BeginTextCommandDisplayText, EndTextCommandDisplayText)
+  DisplayText = nil
+  DisplayHelp = text_formatter(BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp)
+  ThefeedPostTicker = text_formatter(BeginTextCommandThefeedPost, EndTextCommandThefeedPostTicker)
 end
-
-DisplayTextThisFrame = text_formatter(BeginTextCommandDisplayText, EndTextCommandDisplayText)
-DisplayText = nil
-DisplayHelp = text_formatter(BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp)
-ThefeedPostTicker = text_formatter(BeginTextCommandThefeedPost, EndTextCommandThefeedPostTicker)
 
 -- keys
 
 local IsControlJustPressed = _ENV.IsControlJustPressed
 local IsControlJustReleased = _ENV.IsControlJustReleased
 
-local registered_controls = {}
-
-function FW_RegisterControlKey(controller, key)
-  if not key then
-    controller, key = 0, controller
-  end
-  registered_controls[controller..'.'..key] = t_pack(controller, key)
-end
-
-function FW_UnregisterControlKey(controller, key)
-  if not key then
-    controller, key = 0, controller
-  end
-  registered_controls[controller..'.'..key] = nil
-end
-
-Cfx_CreateThread(function()
-  while true do
-    local pressed = {}
-    local released = {}
-    for k, info in pairs(registered_controls) do
-      if IsControlJustPressed(t_unpack(info)) then
-        pressed[info[2]] = info[1]
-      end
-      if IsControlJustReleased(t_unpack(info)) then
-        released[info[2]] = info[1]
-      end
+do
+  local registered_controls = {}
+  
+  function FW_RegisterControlKey(controller, key)
+    if not key then
+      controller, key = 0, controller
     end
-    if next(pressed) or next(released) then
-      FW_TriggerNetCallback('OnPlayerKeyStateChange', pressed, released)
-    end
-    Cfx_Wait(0)
+    registered_controls[controller..'.'..key] = t_pack(controller, key)
   end
-end)
+  
+  function FW_UnregisterControlKey(controller, key)
+    if not key then
+      controller, key = 0, controller
+    end
+    registered_controls[controller..'.'..key] = nil
+  end
+  
+  Cfx_CreateThread(function()
+    while true do
+      local pressed = {}
+      local released = {}
+      for k, info in pairs(registered_controls) do
+        if IsControlJustPressed(t_unpack(info)) then
+          pressed[info[2]] = info[1]
+        end
+        if IsControlJustReleased(t_unpack(info)) then
+          released[info[2]] = info[1]
+        end
+      end
+      if next(pressed) or next(released) then
+        FW_TriggerNetCallback('OnPlayerKeyStateChange', pressed, released)
+      end
+      Cfx_Wait(0)
+    end
+  end)
+end
