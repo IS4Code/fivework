@@ -63,6 +63,7 @@ public = setmetatable({}, {
     return rawset(self, key, value)
   end
 })
+local public = _ENV.public
 
 function FW_TriggerCallback(name, ...)
   local handler = public[name]
@@ -70,6 +71,7 @@ function FW_TriggerCallback(name, ...)
     return handler(...)
   end
 end
+local FW_TriggerCallback = _ENV.FW_TriggerCallback
 
 -- commands
 
@@ -83,8 +85,11 @@ local function cmd_newindex(restricted)
         if func then
           return FW_Async(function(...)
             Sleep(0)
-            return func(...)
-          end, source, rawCommand, t_unpack(args))
+            local result = FW_TriggerCallback('OnPlayerReceivedCommand', source, rawCommand, ...)
+            if result ~= false then
+              return FW_TriggerCallback('OnPlayerPerformedCommand', source, rawCommand, func(source, rawCommand, ...))
+            end
+          end, t_unpack(args))
         end
       end, restricted)
     end

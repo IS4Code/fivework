@@ -24,14 +24,16 @@ FW_RegisterCallback('OnPlayerText', 'chatMessage', false, true, function(source,
   return source, message, author, ...
 end)
 
+FW_RegisterPlainCallback('OnPlayerDeath')
+FW_RegisterNetCallback('OnPlayerUpdate')
+FW_RegisterPlainCallback('OnPlayerReceivedCommand')
+FW_RegisterPlainCallback('OnPlayerPerformedCommand')
+
 AddEventHandler('onResourceStart', function(resource)
   if resource == GetCurrentResourceName() then
     FW_TriggerCallback('OnScriptInit')
   end
 end)
-
-FW_RegisterNetCallback('OnPlayerDeath')
-FW_RegisterNetCallback('OnPlayerUpdate')
 
 RegisterServerEvent('baseevents:onPlayerDied')
 AddEventHandler('baseevents:onPlayerDied', function(killertype, killerpos)

@@ -86,7 +86,13 @@ do
       return true
     end
   end
-end  
+  
+  function FW_RegisterPlainCallback(name)
+    callback_info[name] = function()
+      return true
+    end
+  end
+end
 
 function FW_RegisterNetCallback(name, eventname, processor)
   return AddEventHandler(eventname, function(...)

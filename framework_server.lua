@@ -79,6 +79,12 @@ do
     return FW_RegisterCallback(name, eventname, ...)
   end
   
+  function FW_RegisterPlainCallback(name)
+    callback_info[name] = function()
+      return true
+    end
+  end
+  
   function FW_RegisterNetCallback(name, processor)
     callback_info[name] = function(handler)
       if processor then

@@ -1,5 +1,7 @@
 FW_RegisterNetCallback('OnPlayerSpawn', 'playerSpawned')
 FW_RegisterNetCallback('OnGameEvent', 'gameEventTriggered')
+FW_RegisterPlainCallback('OnPlayerReceivedCommand')
+FW_RegisterPlainCallback('OnPlayerPerformedCommand')
 
 AddEventHandler('onResourceStart', function(resource)
   if resource == GetCurrentResourceName() then
