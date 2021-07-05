@@ -460,24 +460,24 @@ do
   local SaveResourceFile = _ENV.SaveResourceFile
   local LoadResourceFile = _ENV.LoadResourceFile
   
-  function SaveResourceData(name, file, data) 
-    data = j_encode(transform_table{data = data})
+  function SaveResourceData(name, file, ...)
+    data = j_encode(transform_table(t_pack(...)))
     return SaveResourceFile(name, file, data, #data)
   end
   
   function LoadResourceData(name, file)
     local data = LoadResourceFile(name, file)
-    return transform_table_back(j_decode(data)).data
+    return t_unpack(transform_table_back(j_decode(data)))
   end
   
   local GetCurrentResourceName = _ENV.GetCurrentResourceName
   
-  function SaveScriptData(file, data)
-    return SaveResourceData(GetCurrentResourceName(), file, data)
+  function SaveScriptData(...)
+    return SaveResourceData(GetCurrentResourceName(), ...)
   end
   
-  function LoadScriptData(file)
-    return LoadResourceData(GetCurrentResourceName(), file)
+  function LoadScriptData(...)
+    return LoadResourceData(GetCurrentResourceName(), ...)
   end
 end
 
