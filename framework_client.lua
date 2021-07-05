@@ -8,6 +8,7 @@ local tostring = _ENV.tostring
 local tonumber = _ENV.tonumber
 local load = _ENV.load
 local type = _ENV.type
+local error = _ENV.error
 local assert = _ENV.assert
 local rawset = _ENV.rawset
 local select = _ENV.select
@@ -167,7 +168,7 @@ do
   local func_patterns = {
     ['NetworkIdIn(%d+)$'] = function(name, pos)
       local f = find_func(name)
-      if f then
+      if type(f) == 'function' then
         pos = tonumber(pos)
         if pos == 0 then
           return f
@@ -197,7 +198,7 @@ do
     end,
     ['NetworkIdOut(%d+)$'] = function(name, pos)
       local f = find_func(name)
-      if f then
+      if type(f) == 'function' then
         pos = tonumber(pos)
         if pos == 0 then
           return f
@@ -224,14 +225,16 @@ do
     end,
     ['AtIndex$'] = function(name)
       local f = find_func(name..'ThisFrame')
-      return f and function(key, ...)
-        frame_func_handlers[key] = pack_frame_args(f, ...)
-        return key
+      if type(f) == 'function' then
+        return function(key, ...)
+          frame_func_handlers[key] = pack_frame_args(f, ...)
+          return key
+        end
       end
     end,
     ['ShiftIn(%d+)$'] = function(name, shift)
       local f = find_func(name)
-      if f then
+      if type(f) == 'function' then
         shift = tonumber(shift)
         if shift <= 1 then
           return f
@@ -258,7 +261,7 @@ do
     end,
     ['ShiftOut(%d+)$'] = function(name, shift)
       local f = find_func(name)
-      if f then
+      if type(f) == 'function' then
         shift = tonumber(shift)
         if shift <= 1 then
           return f
@@ -285,11 +288,25 @@ do
     end
   }
   
+  local function find_script_var(key)
+    if key == '_G' then
+      return _ENV
+    elseif key ~= 'debug' then
+      return find_func(key)
+    end
+  end
+  
   local script_environment = setmetatable({}, {
     __index = function(self, key)
-      local func = find_func(key)
-      rawset(self, key, func)
-      return func
+      local value = find_script_var(key)
+      rawset(self, key, value)
+      return value
+    end,
+    __newindex = function(self, key, value)
+      if find_script_var(key) then
+        return error("'"..key.."' cannot be redefined")
+      end
+      return rawset(self, key, value)
     end
   })
   
@@ -318,6 +335,8 @@ do
   find_func = function(name)
     if name == 'DoScript' then
       return do_script
+    elseif name == 'rawset' or name == 'rawget' then
+      return nil
     end
     local f = _ENV[name]
     if f then
@@ -325,7 +344,7 @@ do
     end
     if not str_find(name, 'ThisFrame$') then
       f = find_func(name .. 'ThisFrame')
-      if f then
+      if type(f) == 'function' then
         return function(...)
           frame_func_handlers[f] = pack_frame_args(f, ...)
         end
