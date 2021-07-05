@@ -408,19 +408,27 @@ local IsControlJustReleased = _ENV.IsControlJustReleased
 do
   local registered_controls = {}
   
-  function FW_RegisterControlKey(controller, key)
+  local function control_key(controller, key)
     if not key then
       controller, key = 0, controller
     end
     local data = {controller, key}
-    registered_controls[j_encode(data)] = data
+    return j_encode(data), data
+  end
+  
+  function FW_RegisterControlKey(controller, key)
+    local index, data = control_key(controller, key)
+    registered_controls[index] = data
   end
   
   function FW_UnregisterControlKey(controller, key)
-    if not key then
-      controller, key = 0, controller
-    end
-    registered_controls[j_encode{controller, key}] = nil
+    local index = control_key(controller, key)
+    registered_controls[index] = nil
+  end
+  
+  function FW_IsControlKeyRegistered(controller, key)
+    local index = control_key(controller, key)
+    return registered_controls[index] ~= nil
   end
   
   Cfx_CreateThread(function()
@@ -447,14 +455,22 @@ do
   local registered_updates = {}
   local interval = 0
   
+  local function update_key(...)
+    return j_encode(t_pack(...))
+  end
+  
   function FW_RegisterUpdate(fname, ...)
     local func = _ENV[fname]
     local value = func and func(...)
-    registered_updates[j_encode(t_pack(fname, ...))] = t_pack(value, fname, ...)
+    registered_updates[update_key(fname, ...)] = t_pack(value, fname, ...)
   end
   
-  function FW_UnregisterUpdate(fname, ...)
-    registered_updates[j_encode(t_pack(fname, ...))] = nil
+  function FW_UnregisterUpdate(...)
+    registered_updates[update_key(...)] = nil
+  end
+  
+  function FW_IsUpdateRegistered(...)
+    return registered_updates[update_key(...)] ~= nil
   end
   
   function FW_SetUpdateInterval(newinterval)
