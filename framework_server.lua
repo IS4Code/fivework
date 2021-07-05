@@ -12,9 +12,13 @@ local error = _ENV.error
 local rawset = _ENV.rawset
 local rawget = _ENV.rawget
 local type = _ENV.type
+local m_type = math.type
+local m_huge = math.huge
 local ipairs = _ENV.ipairs
 local pairs = _ENV.pairs
 local tostring = _ENV.tostring
+local j_encode = json.encode
+local j_decode = json.decode
 
 local CancelEvent = _ENV.CancelEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent
@@ -283,5 +287,194 @@ do
   
   function SendClientMessageToAllFormat(color, format, ...)
     return SendClientMessageToAll(color, str_format(format, ...))
+  end
+end
+
+-- serialization
+
+do
+  local special_prefix = '#'
+  local literal_infix = '#'
+  local json_infix = ':'
+  local special_infix = '.'
+  local definition_suffix = '='
+  local infix_pos = #special_prefix + 1
+  
+  local function is_special(str)
+    return str_sub(str, 1, #special_prefix) == special_prefix
+  end
+  
+  local function needs_transform(t)
+    local array, object
+    local count = 0
+    for k, v in pairs(t) do
+      if type(v) == 'table' then
+        if needs_transform(v) then
+          return true
+        end
+      elseif type(v) == 'string' then
+        if is_special(v) then
+          return true
+        end
+      elseif m_type(v) == 'float' then
+        if v ~= v or v == m_huge or v == -m_huge then
+          return true
+        end
+      end
+      if m_type(k) == 'integer' and k > 0 then
+        if object then
+          return true
+        end
+        count = count + 1
+        array = true
+      elseif type(k) == 'string' then
+        if array or is_special(k) then
+          return true
+        end
+        object = true
+      else
+        return true
+      end
+    end
+    return count ~= #t
+  end
+  
+  local function transform_table(t, cache)
+    if not needs_transform(t) then
+      return t
+    end
+    cache = cache or {}
+    local g = cache[t]
+    if g then
+      return g
+    end
+    g = {}
+    cache[t] = g
+    for k, v in pairs(t) do
+      if type(v) == 'table' then
+        v = transform_table(v, cache)
+      elseif type(v) == 'string' and is_special(v) then
+        v = special_prefix..literal_infix..v
+      elseif m_type(v) == 'float' then
+        if v ~= v then
+          v = special_prefix..special_infix..'nan'
+        elseif v == m_huge then
+          v = special_prefix..special_infix..'inf'
+        elseif v == -m_huge then
+          v = special_prefix..special_infix..'-inf'
+        end
+      end
+      if type(k) ~= 'string' then
+        if type(k) == 'table' then
+          local k2 = transform_table(k, cache)
+          if k ~= k2 then
+            for i = 1, m_huge do
+              local l = special_prefix..i
+              if not g[l] then
+                g[special_prefix..i..definition_suffix] = k2
+                k = l
+                break
+              end
+            end
+          else
+            k = special_prefix..json_infix..j_encode(k)
+          end
+        elseif m_type(k) == 'float' then
+          if k ~= k then
+            k = special_prefix..special_infix..'nan'
+          elseif k == m_huge then
+            k = special_prefix..special_infix..'inf'
+          elseif k == -m_huge then
+            k = special_prefix..special_infix..'-inf'
+          else
+            k = special_prefix..json_infix..j_encode(k)
+          end
+        else
+          k = special_prefix..json_infix..j_encode(k)
+        end
+      elseif is_special(k) then
+        k = special_prefix..literal_infix..k
+      end
+      g[k] = v
+    end
+    return g
+  end
+  
+  local transform_table_back
+  
+  local special_table = {
+    ['nan'] = 0/0,
+    ['inf'] = m_huge,
+    ['-inf'] = -m_huge
+  }
+  
+  local function transform_value_back(v, t)
+    if type(v) == 'table' then
+      return transform_table_back(v)
+    elseif type(v) == 'string' and is_special(v) then
+      if str_sub(v, infix_pos, infix_pos + #json_infix - 1) == json_infix then
+        return j_decode(str_sub(v, infix_pos + #json_infix))
+      elseif str_sub(v, infix_pos, infix_pos + #literal_infix - 1) == literal_infix then
+        return str_sub(v, infix_pos + #literal_infix)
+      elseif str_sub(v, infix_pos, infix_pos + #special_infix - 1) == special_infix then
+        return special_table[str_sub(v, infix_pos + #special_infix)]
+      else
+        local def = v..definition_suffix
+        return t[def]
+      end
+    else
+      return v
+    end
+  end
+  
+  transform_table_back = function(t)
+    local g, d
+    for k, v in pairs(t) do
+      local k2, v2 = transform_value_back(k, t), transform_value_back(v, t)
+      if k ~= k2 then
+        d = d or {}
+        d[k] = true
+        if k2 then
+          g = g or {}
+          g[k2] = v2
+        end
+      elseif v ~= v2 then
+        t[k] = v2
+      end
+    end
+    if d then
+      for k in pairs(d) do
+        t[k] = nil
+      end
+    end
+    if g then
+      for k, v in pairs(g) do
+        t[k] = v
+      end
+    end
+    return t
+  end
+  
+  local SaveResourceFile = _ENV.SaveResourceFile
+  local LoadResourceFile = _ENV.LoadResourceFile
+  
+  function SaveResourceData(name, file, data) 
+    data = j_encode(transform_table{data = data})
+    return SaveResourceFile(name, file, data, #data)
+  end
+  
+  function LoadResourceData(name, file)
+    local data = LoadResourceFile(name, file)
+    return transform_table_back(j_decode(data)).data
+  end
+  
+  local GetCurrentResourceName = _ENV.GetCurrentResourceName
+  
+  function SaveScriptData(file, data)
+    return SaveResourceData(GetCurrentResourceName(), file, data)
+  end
+  
+  function LoadScriptData(file)
+    return LoadResourceData(GetCurrentResourceName(), file)
   end
 end
