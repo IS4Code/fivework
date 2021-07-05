@@ -19,6 +19,8 @@ local pairs = _ENV.pairs
 local tostring = _ENV.tostring
 local j_encode = json.encode
 local j_decode = json.decode
+local cor_wrap = coroutine.wrap
+local cor_yield = coroutine.yield
 
 local CancelEvent = _ENV.CancelEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent
@@ -477,4 +479,22 @@ do
   function LoadScriptData(file)
     return LoadResourceData(GetCurrentResourceName(), file)
   end
+end
+
+local GetNumPlayerIdentifiers = _ENV.GetNumPlayerIdentifiers
+local GetPlayerIdentifier = _ENV.GetPlayerIdentifier
+
+function PlayerIdentifiers(player)
+  return cor_wrap(function()
+    local num = GetNumPlayerIdentifiers(player)
+		for i = 0, num-1 do
+      local id = GetPlayerIdentifier(player, i)
+      if id then
+        local i, j = str_find(id, ':')
+        if i then
+          cor_yield(str_sub(id, 1, i - 1), str_sub(id, j + 1))
+        end
+      end
+		end
+  end)
 end
