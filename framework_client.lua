@@ -52,7 +52,7 @@ do
   end
   
   function GetStringHash(text)
-    return GetHashKey(str_gsub(text, ' *[%% A-Z]', char_replacer))
+    return GetHashKey(str_gsub(text, ' *[%% \tA-Z]', char_replacer))
   end
 end
 local GetStringHash = _ENV.GetStringHash
