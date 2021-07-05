@@ -5,10 +5,12 @@ local pairs = _ENV.pairs
 local ipairs = _ENV.ipairs
 local next = _ENV.next
 local tostring = _ENV.tostring
+local tonumber = _ENV.tonumber
 local load = _ENV.load
 local type = _ENV.type
 local assert = _ENV.assert
 local rawset = _ENV.rawset
+local select = _ENV.select
 local m_type = math.type
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
@@ -137,24 +139,87 @@ end
 -- remote execution
 
 do
-  local function replace_network_id(entity, ...)
-    return NetworkGetNetworkIdFromEntity(entity), ...
+  local function replace_network_id_1(a, ...)
+    a = NetworkGetNetworkIdFromEntity(a)
+    return a, ...
+  end
+  
+  local function replace_network_id_2(a, b, ...)
+    b = NetworkGetNetworkIdFromEntity(b)
+    return a, b, ...
+  end
+  
+  local function replace_network_id_3(a, b, c, ...)
+    c = NetworkGetNetworkIdFromEntity(c)
+    return a, b, c, ...
+  end
+  
+  local function shift_2(a, b, ...)
+    return b, a, ...
+  end
+  
+  local function shift_3(a, b, c, ...)
+    return c, a, b, ...
   end
   
   local find_func
   
   local func_patterns = {
-    ['NetworkedArgument$'] = function(name)
+    ['NetworkIdIn(%d+)$'] = function(name, pos)
       local f = find_func(name)
-      return f and function(entity, ...)
-        entity = NetworkGetEntityFromNetworkId(entity)
-        return f(entity, ...)
+      if f then
+        pos = tonumber(pos)
+        if pos == 0 then
+          return f
+        elseif pos == 1 then
+          return function(a, ...)
+            a = NetworkGetEntityFromNetworkId(a)
+            return f(a, ...)
+          end
+        elseif pos == 2 then
+          return function(a, b, ...)
+            b = NetworkGetEntityFromNetworkId(b)
+            return f(a, b, ...)
+          end
+        elseif pos == 3 then
+          return function(a, b, c, ...)
+            c = NetworkGetEntityFromNetworkId(c)
+            return f(a, b, c, ...)
+          end
+        else
+          return function(...)
+            local t = t_pack(...)
+            t[pos] = NetworkGetEntityFromNetworkId(t[pos])
+            return f(t_unpack(t))
+          end
+        end
       end
     end,
-    ['NetworkedResult$'] = function(name)
+    ['NetworkIdOut(%d+)$'] = function(name, pos)
       local f = find_func(name)
-      return f and function(...)
-        return replace_network_id(f(...))
+      if f then
+        pos = tonumber(pos)
+        if pos == 0 then
+          return f
+        elseif pos == 1 then
+          return function(...)
+            return replace_network_id_1(f(...))
+          end
+        elseif pos == 2 then
+          return function(...)
+            return replace_network_id_2(f(...))
+          end
+        elseif pos == 3 then
+          return function(...)
+            return replace_network_id_3(f(...))
+          end
+        else
+          return function(...)
+            local t = t_pack(f(...))
+            t[pos] = NetworkGetNetworkIdFromEntity(t[pos])
+            return t_unpack(t)
+          end
+        end
       end
     end,
     ['AtIndex$'] = function(name)
@@ -164,24 +229,72 @@ do
         return key
       end
     end,
-    ['SwapFirstTwoArguments$'] = function(name)
+    ['ShiftIn(%d+)$'] = function(name, shift)
       local f = find_func(name)
-      return f and function(first, second, ...)
-        return f(second, first, ...)
+      if f then
+        shift = tonumber(shift)
+        if shift <= 1 then
+          return f
+        elseif shift == 2 then
+          return function(a, b, ...)
+            return f(b, a, ...)
+          end
+        elseif shift == 3 then
+          return function(a, b, c, ...)
+            return f(c, a, b, ...)
+          end
+        else
+          return function(...)
+            local t = t_pack(...)
+            for i = shift, 2, -1 do
+              local old = t[i]
+              t[i] = t[i-1]
+              t[i-1] = old
+            end
+            return f(t_unpack(t))
+          end
+        end
       end
     end,
+    ['ShiftOut(%d+)$'] = function(name, shift)
+      local f = find_func(name)
+      if f then
+        shift = tonumber(shift)
+        if shift <= 1 then
+          return f
+        elseif shift == 2 then
+          return function(...)
+            return shift_2(f(...))
+          end
+        elseif shift == 3 then
+          return function(...)
+            return shift_3(f(...))
+          end
+        else
+          return function(...)
+            local t = t_pack(f(...))
+            for i = shift, 2, -1 do
+              local old = t[i]
+              t[i] = t[i-1]
+              t[i-1] = old
+            end
+            return t_unpack(t)
+          end
+        end
+      end
+    end
   }
+  
+  local script_environment = setmetatable({}, {
+    __index = function(self, key)
+      local func = find_func(key)
+      rawset(self, key, func)
+      return func
+    end
+  })
   
   local do_script
   do
-    local script_environment = setmetatable({}, {
-      __index = function(self, key)
-        local func = find_func(key)
-        rawset(self, key, func)
-        return func
-      end
-    })
-    
     local script_cache = {}
     
     do_script = function(chunk, ...)
@@ -192,6 +305,13 @@ do
         script_cache[hash] = script
       end
       return script(...)
+    end
+  end
+  
+  local function match_result(name, proc, i, j, ...)
+    if i then
+      local newname = str_sub(name, 1, i - 1)..str_sub(name, j + 1)
+      return proc(newname, ...)
     end
   end
   
@@ -212,13 +332,9 @@ do
       end
     end
     for pattern, proc in pairs(func_patterns) do
-      local i, j = str_find(name, pattern)
-      if i then
-        local newname = str_sub(name, 1, i - 1)..str_sub(name, j + 1)
-        f = proc(newname)
-        if f then
-          return f
-        end
+      f = match_result(name, proc, str_find(name, pattern))
+      if f then
+        return f
       end
     end
   end
@@ -230,7 +346,7 @@ do
   end
   
   local function remote_call(name, token, args)
-    return process_call(token, pcall(find_func(name), t_unpack(args)))
+    return process_call(token, pcall(script_environment[name], t_unpack(args)))
   end
   
   RegisterNetEvent('fivework:ExecFunction')
