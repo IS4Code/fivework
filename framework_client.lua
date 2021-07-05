@@ -25,6 +25,9 @@ local str_byte = string.byte
 local str_format = string.format
 local str_rep = string.rep
 local j_encode = json.encode
+local cor_wrap = coroutine.wrap
+local cor_yield = coroutine.yield
+local Vdist = _ENV.Vdist
 
 local TriggerServerEvent = _ENV.TriggerServerEvent
 local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
@@ -592,6 +595,8 @@ do
   end)
 end
 
+-- updates
+
 do
   local registered_updates = {}
   local interval = 0
@@ -642,4 +647,121 @@ do
       Cfx_Wait(interval)
     end
   end)
+end
+
+-- enumerators
+
+local GetActivePlayers = _ENV.GetActivePlayers
+local GetPlayerPed = _ENV.GetPlayerPed
+local GetEntityAttachedTo = _ENV.GetEntityAttachedTo
+local GetEntityCoords = _ENV.GetEntityCoords
+
+do
+  local entity_enumerator = {
+    __gc = function(enum)
+      if enum[1] and enum[2] then
+        enum[2](enum[1])
+      end
+      enum[1], enum[2] = nil, nil
+    end
+  }
+  
+  local function enumerate_entities(initFunc, moveFunc, disposeFunc)
+    return cor_wrap(function()
+      local iter, id = initFunc()
+      if not id or id == 0 then
+        disposeFunc(iter)
+        return
+      end
+      
+      local enum = {iter, disposeFunc}
+      setmetatable(enum, entity_enumerator)
+      
+      local next = true
+      repeat
+        cor_yield(id)
+        next, id = moveFunc(iter)
+      until not next
+      
+      enum[1], enum[2] = nil, nil
+      disposeFunc(iter)
+    end)
+  end
+  
+  local FindFirstObject = _ENV.FindFirstObject
+  local FindNextObject = _ENV.FindNextObject
+  local EndFindObject = _ENV.EndFindObject
+  function EnumerateAllObjects()
+    return enumerate_entities(FindFirstObject, FindNextObject, EndFindObject)
+  end
+  local EnumerateAllObjects = _ENV.EnumerateAllObjects
+  
+  local FindFirstPed = _ENV.FindFirstPed
+  local FindNextPed = _ENV.FindNextPed
+  local EndFindPed = _ENV.EndFindPed
+  function EnumerateAllPeds()
+    return enumerate_entities(FindFirstPed, FindNextPed, EndFindPed)
+  end
+  local EnumerateAllPeds = _ENV.EnumerateAllPeds
+  
+  local FindFirstVehicle = _ENV.FindFirstVehicle
+  local FindNextVehicle = _ENV.FindNextVehicle
+  local EndFindVehicle = _ENV.EndFindVehicle
+  function EnumerateVehicles()
+    return enumerate_entities(FindFirstVehicle, FindNextVehicle, EndFindVehicle)
+  end
+  
+  local FindFirstPickup = _ENV.FindFirstPickup
+  local FindNextPickup = _ENV.FindNextPickup
+  local EndFindPickup = _ENV.EndFindPickup
+  function EnumeratePickups()
+    return enumerate_entities(FindFirstPickup, FindNextPickup, EndFindPickup)
+  end
+
+  function GetPlayerFromPed(ped)
+    for _, i in ipairs(GetActivePlayers()) do
+      if GetPlayerPed(i) == ped then
+        return i
+      end
+    end
+  end
+  local GetPlayerFromPed = _ENV.GetPlayerFromPed
+  
+  function EnumeratePeds()
+    return cor_wrap(function()
+      for ped in EnumerateAllPeds() do
+        if not GetPlayerFromPed(ped) then
+          cor_yield(ped)
+        end
+      end
+    end)
+  end
+  
+  function EnumerateObjects()
+    return cor_wrap(function()
+      for obj in EnumerateAllObjects() do
+        local attached = GetEntityAttachedTo(obj)
+        if not attached or attached == 0 then
+          coroutine.yield(obj)
+        end
+      end
+    end)
+  end
+  
+  function FindNearestEntity(pos, iterator)
+    local entity, dist
+    for v in iterator() do
+      if not entity then
+        entity = v
+        dist = Vdist(pos, GetEntityCoords(v, false))
+      else
+        local d = Vdist(pos, GetEntityCoords(v, false))
+        if d < dist then
+          dist = d
+          entity = v
+        end
+      end
+    end
+    return entity
+  end
 end
