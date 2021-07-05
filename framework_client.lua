@@ -13,6 +13,7 @@ local assert = _ENV.assert
 local rawset = _ENV.rawset
 local select = _ENV.select
 local m_type = math.type
+local m_huge = math.huge
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local t_concat = table.concat
@@ -748,20 +749,25 @@ do
     end)
   end
   
-  function FindNearestEntity(pos, iterator)
+  function FindNearestEntity(pos, iterator, maxdist)
+    maxdist = maxdist or m_huge
     local entity, dist
     for v in iterator() do
       if not entity then
-        entity = v
         dist = Vdist(pos, GetEntityCoords(v, false))
+        if dist <= maxdist then
+          entity = v
+        else
+          entity = nil
+        end
       else
         local d = Vdist(pos, GetEntityCoords(v, false))
-        if d < dist then
+        if d <= maxdist and d < dist then
           dist = d
           entity = v
         end
       end
     end
-    return entity
+    return entity, dist
   end
 end
