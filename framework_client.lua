@@ -445,6 +445,7 @@ end
 
 do
   local registered_updates = {}
+  local interval = 0
   
   function FW_RegisterUpdate(fname, ...)
     local func = _ENV[fname]
@@ -454,6 +455,14 @@ do
   
   function FW_UnregisterUpdate(fname, ...)
     registered_updates[j_encode(t_pack(fname, ...))] = nil
+  end
+  
+  function FW_SetUpdateInterval(newinterval)
+    interval = newinterval
+  end
+  
+  function FW_GetUpdateInterval()
+    return interval
   end
   
   Cfx_CreateThread(function()
@@ -473,7 +482,7 @@ do
       if next(updates) then
         FW_TriggerNetCallback('OnPlayerUpdate', updates)
       end
-      Cfx_Wait(0)
+      Cfx_Wait(interval)
     end
   end)
 end
