@@ -50,7 +50,7 @@ do
   
 -- callback configuration
   
-  function FW_RegisterCallback(name, eventname, has_source, cancellable, processor)
+  function FW_RegisterCallback(name, eventname, has_source, processor)
     callback_info[name] = function(handler)
       if processor then
         local handler_old = handler
@@ -65,7 +65,7 @@ do
         else
           result = handler(...)
         end
-        if cancellable and result == false then
+        if result == false then
           CancelEvent()
         end
       end)
