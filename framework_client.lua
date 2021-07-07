@@ -177,85 +177,108 @@ do
   
   local func_patterns = {
     ['NetworkIdIn(%d+)$'] = function(name, pos)
-      local f = find_func(name)
+      local f, f_inner = find_func(name)
       if type(f) == 'function' then
         pos = tonumber(pos)
         if pos == 0 then
-          return f
+          return f, f_inner
         elseif pos == 1 then
           return function(a, ...)
             a = NetworkGetEntityFromNetworkId(a)
             return f(a, ...)
-          end
+          end, f_inner
         elseif pos == 2 then
           return function(a, b, ...)
             b = NetworkGetEntityFromNetworkId(b)
             return f(a, b, ...)
-          end
+          end, f_inner
         elseif pos == 3 then
           return function(a, b, c, ...)
             c = NetworkGetEntityFromNetworkId(c)
             return f(a, b, c, ...)
-          end
+          end, f_inner
         else
           return function(...)
             local t = t_pack(...)
             t[pos] = NetworkGetEntityFromNetworkId(t[pos])
             return f(t_unpack(t))
-          end
+          end, f_inner
         end
       end
     end,
     ['NetworkIdOut(%d+)$'] = function(name, pos)
-      local f = find_func(name)
+      local f, f_inner = find_func(name)
       if type(f) == 'function' then
         pos = tonumber(pos)
         if pos == 0 then
-          return f
+          return f, f_inner
         elseif pos == 1 then
           return function(...)
             return replace_network_id_1(f(...))
-          end
+          end, f_inner
         elseif pos == 2 then
           return function(...)
             return replace_network_id_2(f(...))
-          end
+          end, f_inner
         elseif pos == 3 then
           return function(...)
             return replace_network_id_3(f(...))
-          end
+          end, f_inner
         else
           return function(...)
             local t = t_pack(f(...))
             t[pos] = NetworkGetNetworkIdFromEntity(t[pos])
             return t_unpack(t)
-          end
+          end, f_inner
         end
       end
     end,
-    ['AtIndex$'] = function(name)
-      local f = find_func(name..'ThisFrame')
+    ['EachFrame$'] = function(name)
+      local f, f_inner = find_func(name..'ThisFrame')
+      if not f then
+        f, f_inner = find_func(name)
+      end
+      if type(f) == 'function' then
+        return function(...)
+          frame_func_handlers[f] = pack_frame_args(f, ...)
+        end, f_inner
+      end
+    end,
+    ['Named$'] = function(name)
+      local f, f_inner = find_func(name..'ThisFrame')
       if type(f) == 'function' then
         return function(key, ...)
           frame_func_handlers[key] = pack_frame_args(f, ...)
           return key
-        end
+        end, f_inner
+      end
+    end,
+    ['EachFrameNamed$'] = function(name)
+      local f, f_inner = find_func(name..'ThisFrame')
+      if not f then
+        f, f_inner = find_func(name)
+      end
+      if type(f) == 'function' then
+        return function(key, ...)
+          frame_func_handlers[key] = pack_frame_args(f, ...)
+          return key
+        end, f_inner
       end
     end,
     ['ShiftIn(%d+)$'] = function(name, shift)
-      local f = find_func(name)
+      local f, f_inner = find_func(name)
       if type(f) == 'function' then
         shift = tonumber(shift)
         if shift <= 1 then
-          return f
+          return f, f_inner
         elseif shift == 2 then
           return function(a, b, ...)
             return f(b, a, ...)
-          end
+          end, f_inner
         elseif shift == 3 then
           return function(a, b, c, ...)
             return f(c, a, b, ...)
-          end
+          end, f_inner
         else
           return function(...)
             local t = t_pack(...)
@@ -265,24 +288,24 @@ do
               t[i-1] = old
             end
             return f(t_unpack(t))
-          end
+          end, f_inner
         end
       end
     end,
     ['ShiftOut(%d+)$'] = function(name, shift)
-      local f = find_func(name)
+      local f, f_inner = find_func(name)
       if type(f) == 'function' then
         shift = tonumber(shift)
         if shift <= 1 then
-          return f
+          return f, f_inner
         elseif shift == 2 then
           return function(...)
             return shift_2(f(...))
-          end
+          end, f_inner
         elseif shift == 3 then
           return function(...)
             return shift_3(f(...))
-          end
+          end, f_inner
         else
           return function(...)
             local t = t_pack(f(...))
@@ -292,7 +315,7 @@ do
               t[i-1] = old
             end
             return t_unpack(t)
-          end
+          end, f_inner
         end
       end
     end
@@ -302,7 +325,7 @@ do
     if key == '_G' then
       return _ENV
     elseif key ~= 'debug' then
-      return find_func(key)
+      return (find_func(key))
     end
   end
   
@@ -320,19 +343,27 @@ do
     end
   })
   
-  local do_script
+  local cache_script
   do
     local script_cache = {}
     
-    do_script = function(chunk, ...)
+    cache_script = function(chunk)
+      if type(chunk) == 'function' then
+        return chunk
+      end
       local hash = GetStringHash(chunk)
       local script = script_cache[hash]
       if not script then
         script = assert(load(chunk, '=(load)', nil, script_environment))
         script_cache[hash] = script
       end
-      return script(...)
+      return script
     end
+  end
+    
+  local function do_script(chunk, ...)
+    local script = cache_script(chunk)
+    return script(...)
   end
   
   local function match_result(name, proc, i, j, ...)
@@ -344,26 +375,26 @@ do
   
   find_func = function(name)
     if name == 'DoScript' then
-      return do_script
+      return do_script, do_script
     elseif name == 'rawset' or name == 'rawget' then
       return nil
     end
-    local f = _ENV[name]
+    local f, f_inner = _ENV[name]
     if f then
-      return f
+      return f, f
     end
     if not str_find(name, 'ThisFrame$') then
-      f = find_func(name .. 'ThisFrame')
+      f, f_inner = find_func(name .. 'ThisFrame')
       if type(f) == 'function' then
         return function(...)
           frame_func_handlers[f] = pack_frame_args(f, ...)
-        end
+        end, f_inner
       end
     end
     for pattern, proc in pairs(func_patterns) do
-      f = match_result(name, proc, str_find(name, pattern))
+      f, f_inner = match_result(name, proc, str_find(name, pattern))
       if f then
-        return f
+        return f, f_inner
       end
     end
   end
