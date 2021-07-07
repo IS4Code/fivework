@@ -173,7 +173,22 @@ do
     return c, a, b, ...
   end
   
-  local find_func
+  local find_func, cache_script
+    
+  local function do_script(chunk, ...)
+    local script = cache_script(chunk)
+    return script(...)
+  end
+  
+  local function try_cache_script(chunk)
+    if chunk then
+      local status, script = pcall(cache_script, chunk)
+      if status then
+        return script
+      end
+    end
+    return chunk
+  end
   
   local func_patterns = {
     ['NetworkIdIn(%d+)$'] = function(name, pos)
@@ -239,6 +254,12 @@ do
         f, f_inner = find_func(name)
       end
       if type(f) == 'function' then
+        if f == do_script then
+          return function(timeout, chunk, ...)
+            frame_func_handlers[do_script] = pack_frame_args(do_script, timeout, try_cache_script(chunk), ...)
+          end, f_inner
+        end
+        
         return function(...)
           frame_func_handlers[f] = pack_frame_args(f, ...)
         end, f_inner
@@ -259,6 +280,12 @@ do
         f, f_inner = find_func(name)
       end
       if type(f) == 'function' then
+        if f == do_script then
+          return function(key, timeout, chunk, ...)
+            frame_func_handlers[key] = pack_frame_args(do_script, timeout, try_cache_script(chunk), ...)
+          end, f_inner
+        end
+        
         return function(key, ...)
           frame_func_handlers[key] = pack_frame_args(f, ...)
           return key
@@ -343,7 +370,6 @@ do
     end
   })
   
-  local cache_script
   do
     local script_cache = {}
     
@@ -359,11 +385,6 @@ do
       end
       return script
     end
-  end
-    
-  local function do_script(chunk, ...)
-    local script = cache_script(chunk)
-    return script(...)
   end
   
   local function match_result(name, proc, i, j, ...)
