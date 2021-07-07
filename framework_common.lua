@@ -6,6 +6,7 @@ local cor_resume = cor.resume
 local cor_yield = cor.yield
 local error = _ENV.error
 local rawset = _ENV.rawset
+local pcall = _ENV.pcall
 local t_unpack_orig = table.unpack
 
 local Cfx_SetTimeout = Citizen.SetTimeout
@@ -77,6 +78,13 @@ local FW_TriggerCallback = _ENV.FW_TriggerCallback
 
 local registered_commands = {}
 
+local function after_command(source, rawCommand, status, ...)
+  local result = FW_TriggerCallback('OnPlayerPerformedCommand', source, rawCommand, status, ...)
+  if not status and not result then
+    return error(...)
+  end
+end
+
 local function cmd_newindex(restricted)
   return function(self, key, value)
     if not registered_commands[key] then
@@ -87,7 +95,7 @@ local function cmd_newindex(restricted)
             Sleep(0)
             local result = FW_TriggerCallback('OnPlayerReceivedCommand', source, rawCommand, ...)
             if result ~= false then
-              return FW_TriggerCallback('OnPlayerPerformedCommand', source, rawCommand, func(source, rawCommand, ...))
+              return after_command(source, rawCommand, pcall(func, source, rawCommand, ...))
             end
           end, t_unpack(args))
         end
