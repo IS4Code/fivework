@@ -61,7 +61,7 @@ do
       AddEventHandler(eventname, function(...)
         local result
         if has_source then
-          result = handler(source, ...)
+          result = handler(_ENV.source, ...)
         else
           result = handler(...)
         end
@@ -101,7 +101,7 @@ do
   AddEventHandler('fivework:ClientCallback', function(name, args)
     local handler = net_callback_handlers[name]
     if handler then
-      return handler(source, t_unpack(args))
+      return handler(_ENV.source, t_unpack(args))
     end
   end)
 end
