@@ -749,7 +749,7 @@ do
   end
   
   function FW_RegisterUpdate(fname, ...)
-    local func = _ENV[fname]
+    local func = script_environment[fname]
     local value = func and func(...)
     registered_updates[update_key(fname, ...)] = t_pack(value, fname, ...)
   end
@@ -774,7 +774,7 @@ do
     while true do
       local updates = {}
       for k, info in pairs(registered_updates) do
-        local func = _ENV[info[2]]
+        local func = script_environment[info[2]]
         if func then
           local newvalue = func(t_unpack(info, 3))
           local oldvalue = info[1]
