@@ -12,6 +12,7 @@ local error = _ENV.error
 local assert = _ENV.assert
 local rawset = _ENV.rawset
 local select = _ENV.select
+local setmetatable = _ENV.setmetatable
 local m_type = math.type
 local m_huge = math.huge
 local t_pack = table.pack
@@ -22,9 +23,11 @@ local cor_yield = coroutine.yield
 local str_find = string.find
 local str_sub = string.sub
 local str_gsub = string.gsub
+local str_gmatch = string.gmatch
 local str_byte = string.byte
 local str_format = string.format
 local str_rep = string.rep
+local str_upper = string.upper
 local j_encode = json.encode
 local cor_wrap = coroutine.wrap
 local cor_yield = coroutine.yield
@@ -821,5 +824,205 @@ do
       end
     end
     return entity, dist
+  end
+end
+
+-- scaleform methods
+
+local RequestScaleformMovie = _ENV.RequestScaleformMovie
+local BeginScaleformMovieMethod = _ENV.BeginScaleformMovieMethod
+local ScaleformMovieMethodAddParamTextureNameString = _ENV.ScaleformMovieMethodAddParamTextureNameString
+local ScaleformMovieMethodAddParamBool = _ENV.ScaleformMovieMethodAddParamBool
+local ScaleformMovieMethodAddParamInt = _ENV.ScaleformMovieMethodAddParamInt
+local ScaleformMovieMethodAddParamFloat = _ENV.ScaleformMovieMethodAddParamFloat
+local EndScaleformMovieMethod = _ENV.EndScaleformMovieMethod
+local EndScaleformMovieMethodReturnValue = _ENV.EndScaleformMovieMethodReturnValue
+local IsScaleformMovieMethodReturnValueReady = _ENV.IsScaleformMovieMethodReturnValueReady
+local SetScaleformMovieAsNoLongerNeeded = _ENV.SetScaleformMovieAsNoLongerNeeded
+local HasScaleformMovieLoaded = _ENV.HasScaleformMovieLoaded
+local BeginScaleformScriptHudMovieMethod = _ENV.BeginScaleformScriptHudMovieMethod
+
+do
+  local function return_scheduler(callback, retval)
+    return Cfx_CreateThread(function()
+    	while not IsScaleformMovieMethodReturnValueReady(retval) do
+        Cfx_Wait(0)
+    	end
+      callback(true)
+    end)
+  end
+  
+  local function get_scaleform_method_name(name)
+    local i, j, rettype = str_find(name, 'Return(.+)$')
+    if rettype then
+      name = str_sub(name, 1, i - 1)
+      if rettype == 'None' then
+        rettype = nil
+      else
+        rettype = _ENV['GetScaleformMovieMethodReturnValue'..rettype]
+        if not rettype then
+          return
+        end
+      end
+    end
+    
+    local t = {}
+    for s in str_gmatch(name, '[A-Z][a-z]+') do
+      t_insert(t, str_upper(s))
+    end
+    
+    name = t_concat(t, '_')
+    
+    return name, rettype
+  end
+  
+  local function scaleform_loaded_scheduler(callback, scaleform)
+    return Cfx_CreateThread(function()
+    	while not HasScaleformMovieLoaded(scaleform) do
+    		Cfx_Wait(0)
+    	end
+      callback(true)
+    end)
+  end
+  
+  local function wait_for_scaleform(scaleform)
+    if HasScaleformMovieLoaded(scaleform) then
+      return true
+    else
+      return cor_yield(scaleform_loaded_scheduler, scaleform)
+    end
+  end
+  
+  local function call_scaleform_method(rettype, ...)
+    local args = t_pack(...)
+    for i = 1, args.n do
+      local arg = args[i]
+      if type(arg) == 'table' then
+        local ctype, cvalue = next(arg)
+        if ctype then
+          _ENV['ScaleformMovieMethodAddParam'..ctype](unpack_cond(cvalue))
+        end
+      elseif type(arg) == 'string' then
+        ScaleformMovieMethodAddParamTextureNameString(arg)
+      elseif type(arg) == 'boolean' then
+        ScaleformMovieMethodAddParamBool(arg)
+      elseif m_type(arg) == 'integer' then
+        ScaleformMovieMethodAddParamInt(arg)
+      elseif m_type(arg) == 'float' then
+        ScaleformMovieMethodAddParamFloat(arg)
+      else
+        ScaleformMovieMethodAddParamTextureNameString(tostring(arg))
+      end
+    end
+    
+    if not rettype then
+      return EndScaleformMovieMethod()
+    else
+      local retval = EndScaleformMovieMethodReturnValue()
+      if IsScaleformMovieMethodReturnValueReady(retval) then
+        return rettype(retval)
+      else
+        if cor_yield(return_scheduler, retval) then
+          return rettype(retval)
+        end
+      end
+    end
+  end
+  
+  local scaleform_movie = setmetatable({}, {
+    __index = function(self, key)
+      local name, rettype = get_scaleform_method_name(key)
+      if not name then
+        return
+      end
+      
+      local function f(self, ...)
+        if type(self) == 'table' then
+          self = self.__id
+        end
+        
+        wait_for_scaleform(self)
+        BeginScaleformMovieMethod(self, name)
+        
+        return call_scaleform_method(rettype, ...)
+      end
+      rawset(self, key, f)
+      return f
+    end
+  })
+  
+  local scaleform_mt = {
+    __index = scaleform_movie
+  }
+  
+  local scaleform_mt_gc = {
+    __index = scaleform_movie,
+    __gc = function(self)
+      local id = self.__id
+      if id then
+        self.__id = nil
+        SetScaleformMovieAsNoLongerNeeded(id)
+      end
+    end
+  }
+  
+  function ScaleformMovie(id, gc)
+    if type(id) == 'string' then
+      id = RequestScaleformMovie(id)
+      if gc == nil then
+        gc = true
+      end
+    end
+    return setmetatable({__id = id}, gc and scaleform_mt_gc or scaleform_mt)
+  end
+  
+  local function global_scaleform(beginFunc)
+    return setmetatable({}, {
+      __index = function(self, key)
+        local name, rettype = get_scaleform_method_name(key)
+        if not name then
+          return
+        end
+        
+        local function f(self, ...)
+          beginFunc(name)
+          return call_scaleform_method(rettype, ...)
+        end
+        rawset(self, key, f)
+        return f
+      end
+    })
+  end
+
+  ScaleformMovieOnFrontend = global_scaleform(BeginScaleformMovieMethodOnFrontend)
+  ScaleformMovieOnFrontendHeader = global_scaleform(BeginScaleformMovieMethodOnFrontendHeader)
+
+  local scaleform_script_hud_movie = setmetatable({}, {
+    __index = function(self, key)
+      local name, rettype = get_scaleform_method_name(key)
+      if not name then
+        return
+      end
+      
+      local function f(self, ...)
+        if type(self) == 'table' then
+          self = self.__id
+        end
+        
+        BeginScaleformScriptHudMovieMethod(self, name)
+        
+        return call_scaleform_method(rettype, ...)
+      end
+      rawset(self, key, f)
+      return f
+    end
+  })
+  
+  local scaleform_script_hud_movie_mt = {
+    __index = scaleform_script_hud_movie
+  }
+  
+  function ScaleformScriptHudMovie(id)
+    return setmetatable({__id = id}, scaleform_script_hud_movie_mt)
   end
 end
