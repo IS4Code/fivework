@@ -998,7 +998,7 @@ do
       
       local function f(self, ...)
         if type(self) == 'table' then
-          self = self.__id
+          self = self.__data
         end
         
         wait_for_scaleform(self)
@@ -1018,9 +1018,9 @@ do
   local scaleform_mt_gc = {
     __index = scaleform_movie,
     __gc = function(self)
-      local id = self.__id
+      local id = self.__data
       if id then
-        self.__id = nil
+        self.__data = nil
         SetScaleformMovieAsNoLongerNeeded(id)
       end
     end
@@ -1033,7 +1033,7 @@ do
         gc = true
       end
     end
-    return setmetatable({__id = id}, gc and scaleform_mt_gc or scaleform_mt)
+    return setmetatable({__data = id}, gc and scaleform_mt_gc or scaleform_mt)
   end
   
   local function global_scaleform(beginFunc)
@@ -1066,7 +1066,7 @@ do
       
       local function f(self, ...)
         if type(self) == 'table' then
-          self = self.__id
+          self = self.__data
         end
         
         BeginScaleformScriptHudMovieMethod(self, name)
@@ -1083,6 +1083,6 @@ do
   }
   
   function ScaleformScriptHudMovie(id)
-    return setmetatable({__id = id}, scaleform_script_hud_movie_mt)
+    return setmetatable({__data = id}, scaleform_script_hud_movie_mt)
   end
 end
