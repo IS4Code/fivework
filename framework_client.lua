@@ -79,32 +79,52 @@ do
     state[j_encode{name, ...}] = t_pack(pcall(script_environment[name], ...))
   end
   
-  observe_state = function(args)
-    local state = {}
+  local function observe_value(state, arg, cache)
+    if cache[arg] or not arg or arg ~= arg then
+      return
+    end
+    cache[arg] = true
+  
     for name, v in pairs(observers) do
       local validator = v[1]
-      if validator ~= nil then
-        for i = 1, args.n do
-          local arg = args[i]
-          
-          local valid
-          if type(validator) == 'boolean' then
-            valid = validator
-          elseif type(validator) == 'table' then
-            valid = validator[arg]
-          elseif type(validator) == 'function' then
-            local status, result = pcall(validator, arg)
-            valid = status and result
-          end
-          
-          if valid then
-            set_state(state, name, arg, t_unpack(v, 2))
-          end
+      if validator then
+        local valid
+        if type(validator) == 'boolean' then
+          valid = true
+        elseif type(validator) == 'table' then
+          valid = validator[arg]
+        elseif type(validator) == 'function' then
+          local status, result = pcall(validator, arg)
+          valid = status and result
         end
-      else
+        
+        if valid then
+          set_state(state, name, arg, t_unpack(v, 2))
+        end
+      end
+    end
+    
+    if type(arg) == 'table' then
+      for k, v in pairs(arg) do
+        observe_value(state, k, cache)
+        observe_value(state, v, cache)
+      end
+    end
+  end
+  
+  observe_state = function(args)
+    local state = {}
+    for name, v in pairs(observers) do 
+      if v[1] == nil then
         set_state(state, name, t_unpack(v, 2))
       end
     end
+    
+    local cache = {}
+    for i = 1, args.n do
+      observe_value(state, args[i], cache)
+    end
+    
     if next(state) then
       args.state = state
     end
