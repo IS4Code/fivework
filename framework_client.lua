@@ -75,16 +75,22 @@ local observe_state
 do
   local observers = {}
   
-  local function set_state(state, name, ...)
-    state[j_encode{name, ...}] = t_pack(pcall(script_environment[name], ...))
+  local observe_value
+  
+  local function set_state(state, name, cache, ...)
+    local data = t_pack(pcall(script_environment[name], ...))
+    state[j_encode{name, ...}] = data
+    for i = 2, data.n do
+      observe_value(state, data[i], cache)
+    end
   end
   
-  local function observe_value(state, arg, cache)
+  observe_value = function(state, arg, cache)
     if cache[arg] or not arg or arg ~= arg then
       return
     end
     cache[arg] = true
-  
+    
     for name, v in pairs(observers) do
       local validator = v[1]
       if validator then
@@ -99,7 +105,7 @@ do
         end
         
         if valid then
-          set_state(state, name, arg, t_unpack(v, 2))
+          set_state(state, name, cache, arg, t_unpack(v, 2))
         end
       end
     end
@@ -113,14 +119,15 @@ do
   end
   
   observe_state = function(args)
+    local cache = {}
+    
     local state = {}
     for name, v in pairs(observers) do 
       if v[1] == nil then
-        set_state(state, name, t_unpack(v, 2))
+        set_state(state, name, cache, t_unpack(v, 2))
       end
     end
     
-    local cache = {}
     for i = 1, args.n do
       observe_value(state, args[i], cache)
     end
