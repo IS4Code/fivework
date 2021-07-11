@@ -927,7 +927,6 @@ local EndScaleformMovieMethodReturnValue = _ENV.EndScaleformMovieMethodReturnVal
 local IsScaleformMovieMethodReturnValueReady = _ENV.IsScaleformMovieMethodReturnValueReady
 local SetScaleformMovieAsNoLongerNeeded = _ENV.SetScaleformMovieAsNoLongerNeeded
 local HasScaleformMovieLoaded = _ENV.HasScaleformMovieLoaded
-local BeginScaleformScriptHudMovieMethod = _ENV.BeginScaleformScriptHudMovieMethod
 
 do
   local function return_scheduler(callback, retval)
@@ -1083,33 +1082,38 @@ do
 
   ScaleformMovieOnFrontend = global_scaleform(BeginScaleformMovieMethodOnFrontend)
   ScaleformMovieOnFrontendHeader = global_scaleform(BeginScaleformMovieMethodOnFrontendHeader)
-
-  local scaleform_script_hud_movie = setmetatable({}, {
-    __index = function(self, key)
-      local name, rettype = get_scaleform_method_name(key)
-      if not name then
-        return
-      end
-      
-      local function f(self, ...)
-        if type(self) == 'table' then
-          self = self.__data
+  
+  local function local_scaleform(beginFunc)
+    local prototype = setmetatable({}, {
+      __index = function(self, key)
+        local name, rettype = get_scaleform_method_name(key)
+        if not name then
+          return
         end
         
-        BeginScaleformScriptHudMovieMethod(self, name)
-        
-        return call_scaleform_method(rettype, ...)
+        local function f(self, ...)
+          if type(self) == 'table' then
+            self = self.__data
+          end
+          
+          beginFunc(self, name)
+          
+          return call_scaleform_method(rettype, ...)
+        end
+        rawset(self, key, f)
+        return f
       end
-      rawset(self, key, f)
-      return f
+    })
+    
+    local prototype_mt = {
+      __index = prototype
+    }
+    
+    return function(id)
+      return setmetatable({__data = id}, prototype_mt)
     end
-  })
-  
-  local scaleform_script_hud_movie_mt = {
-    __index = scaleform_script_hud_movie
-  }
-  
-  function ScaleformScriptHudMovie(id)
-    return setmetatable({__data = id}, scaleform_script_hud_movie_mt)
   end
+  
+  ScaleformScriptHudMovie = local_scaleform(BeginScaleformScriptHudMovieMethod)
+  ScaleformMinimapMovie = local_scaleform(CallMinimapScaleformFunction)
 end
