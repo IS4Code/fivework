@@ -24,6 +24,7 @@ local cor_yield = coroutine.yield
 
 local CancelEvent = _ENV.CancelEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent
+local GetGameTimer = _ENV.GetGameTimer
 
 local function t_unpack(t, i)
   return t_unpack_orig(t, i or 1, t.n)
@@ -37,7 +38,51 @@ local function iterator(obj)
   end
 end
 
--- internal
+local function error_or_return(status, ...)
+  if not status then
+    return error(...)
+  end
+  return ...
+end
+
+-- observers
+
+local retrieve_observed_state, get_observed_state
+do
+  local observed_state = {}
+
+  retrieve_observed_state = function(player, args)
+    if args then
+      local state = args.state
+      if state then
+        local stored = observed_state[player]
+        if not stored then
+          stored = {}
+          observed_state[player] = stored
+        end
+        for k, v in pairs(state) do
+          stored[k] = {GetGameTimer(), v}
+        end
+      end
+    end
+  end
+  
+  get_observed_state = function(player, ...)
+    local state = observed_state[player]
+    if state then
+      return state[j_encode{...}]
+    end
+  end
+  
+  function FW_GetObservedStateUpdateTime(...)
+    local state = get_observed_state(...)
+    if state then
+      return GetGameTimer() - state[1]
+    end
+  end
+end
+
+-- callbacks
 
 do
   local callback_info = {}
@@ -47,8 +92,6 @@ do
   end
   
   local net_callback_handlers = {}
-  
--- callback configuration
   
   function FW_RegisterCallback(name, eventname, has_source, processor)
     callback_info[name] = function(handler)
@@ -99,9 +142,12 @@ do
   
   RegisterNetEvent('fivework:ClientCallback')
   AddEventHandler('fivework:ClientCallback', function(name, args)
+    local source = _ENV.source
+    retrieve_observed_state(source, args)
+    
     local handler = net_callback_handlers[name]
     if handler then
-      return handler(_ENV.source, t_unpack(args))
+      return handler(source, t_unpack(args))
     end
   end)
 end
@@ -190,6 +236,9 @@ do
   
   RegisterNetEvent('fivework:ExecFunctionResult')
   AddEventHandler('fivework:ExecFunctionResult', function(status, args, token)
+    local source = _ENV.source
+    retrieve_observed_state(source, args)
+    
     local handler = continuations[token]
     if handler then
       return handler(status, t_unpack(args))
@@ -198,19 +247,12 @@ do
     end
   end)
   
-  local function handle_result(status, ...)
-    if not status then
-      error(...)
-    end
-    return ...
-  end
-  
   local function for_func(scheduler_factory)
     return function(key)
       local scheduler = scheduler_factory(key)
       if scheduler then
         return function(...)
-          return handle_result(cor_yield(scheduler, ...))
+          return error_or_return(cor_yield(scheduler, ...))
         end
       end
     end
@@ -222,7 +264,15 @@ do
     ['ForAll$'] = for_func(all_scheduler_factory),
     ['ForGroup$'] = for_func(group_scheduler_factory),
     ['ForOwner$'] = for_func(owner_scheduler_factory),
-    ['ForOwnerNoWait$'] = for_func(owner_scheduler_factory_no_wait)
+    ['ForOwnerNoWait$'] = for_func(owner_scheduler_factory_no_wait),
+    ['FromPlayer$'] = function(key)
+      return function(player, ...)
+        local state = get_observed_state(player, key, ...)
+        if state then
+          return error_or_return(t_unpack(state[2]))
+        end
+      end
+    end
   }
   
   local function find_pattern_function(key)

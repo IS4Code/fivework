@@ -65,7 +65,65 @@ do
 end
 local GetStringHash = _ENV.GetStringHash
 
--- internal
+-- remote execution
+
+local script_environment
+
+-- observers
+
+local observe_state
+do
+  local observers = {}
+  
+  local function set_state(state, name, ...)
+    state[j_encode{name, ...}] = t_pack(pcall(script_environment[name], ...))
+  end
+  
+  observe_state = function(args)
+    local state = {}
+    for name, v in pairs(observers) do
+      local validator = v[1]
+      if validator ~= nil then
+        for i = 1, args.n do
+          local arg = args[i]
+          
+          local valid
+          if type(validator) == 'boolean' then
+            valid = validator
+          elseif type(validator) == 'table' then
+            valid = validator[arg]
+          elseif type(validator) == 'function' then
+            local status, result = pcall(validator, arg)
+            valid = status and result
+          end
+          
+          if valid then
+            set_state(state, name, arg, t_unpack(v, 2))
+          end
+        end
+      else
+        set_state(state, name, t_unpack(v, 2))
+      end
+    end
+    if next(state) then
+      args.state = state
+    end
+    return args
+  end
+  
+  function FW_RegisterObserver(name, validator, ...)
+    if type(validator) == 'string' then
+      validator = assert(_ENV[validator], 'variable not found')
+    end
+    observers[name] = t_pack(validator, ...)
+  end
+  
+  function FW_UnregisterObserver(name)
+    observers[name] = nil
+  end
+end
+
+-- callbacks
 
 do
   local callback_info = {}
@@ -73,8 +131,6 @@ do
   function FW_CreateCallbackHandler(name, handler)
     return callback_info[name](handler)
   end
-  
--- callback configuration
   
   function FW_RegisterCallback(name, eventname, processor)
     callback_info[name] = function(handler)
@@ -109,12 +165,12 @@ function FW_RegisterNetCallback(name, eventname, processor)
     else
       args = t_pack(...)
     end
-    return TriggerServerEvent('fivework:ClientCallback', name, args)
+    return TriggerServerEvent('fivework:ClientCallback', name, observe_state(args))
   end)
 end
 
 function FW_TriggerNetCallback(name, ...)
-  return TriggerServerEvent('fivework:ClientCallback', name, t_pack(...))
+  return TriggerServerEvent('fivework:ClientCallback', name, observe_state(t_pack(...)))
 end
 local FW_TriggerNetCallback = _ENV.FW_TriggerNetCallback
 
@@ -359,7 +415,7 @@ do
     end
   end
   
-  local script_environment = setmetatable({}, {
+  script_environment = setmetatable({}, {
     __index = function(self, key)
       local value = find_script_var(key)
       rawset(self, key, value)
@@ -425,7 +481,7 @@ do
   
   local function process_call(token, status, ...)
     if token or not status then
-      return TriggerServerEvent('fivework:ExecFunctionResult', status, t_pack(...), token)
+      return TriggerServerEvent('fivework:ExecFunctionResult', status, observe_state(t_pack(...)), token)
     end
   end
   
@@ -450,6 +506,11 @@ local RequestCollisionAtCoord = _ENV.RequestCollisionAtCoord
 local HasCollisionLoadedAroundEntity = _ENV.HasCollisionLoadedAroundEntity
 
 do
+  local function model_finalizer(hash, ...)
+    SetModelAsNoLongerNeeded(hash)
+    return ...
+  end
+
   local function model_scheduler(callback, hash, timeout)
     return Cfx_CreateThread(function()
     	RequestModel(hash)
@@ -464,8 +525,7 @@ do
           end
         end
     	end
-      callback(true)
-      SetModelAsNoLongerNeeded(hash)
+      return model_finalizer(hash, callback(true))
     end)
   end
   
