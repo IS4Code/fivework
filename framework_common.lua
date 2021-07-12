@@ -10,6 +10,7 @@ local pcall = _ENV.pcall
 local t_unpack_orig = table.unpack
 
 local Cfx_SetTimeout = Citizen.SetTimeout
+local Cfx_CreateThread = Citizen.CreateThread
 
 local function t_unpack(t)
   return t_unpack_orig(t, 1, t.n)
@@ -54,6 +55,16 @@ end
 
 function Yield(...)
   return cor_yield(yield_scheduler, ...)
+end
+
+local function threaded_scheduler(func, threadFunc, ...)
+  return Cfx_CreateThread(function(...)
+    return func(threadFunc(...))
+  end, ...)
+end
+
+function FW_Threaded(...)
+  return cor_yield(threaded_scheduler, ...)
 end
 
 -- events
