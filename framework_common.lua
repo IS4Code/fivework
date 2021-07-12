@@ -57,6 +57,22 @@ function Yield(...)
   return cor_yield(yield_scheduler, ...)
 end
 
+local function yield_prepend_scheduler(func, val)
+  return val, func()
+end
+
+function YieldPrepend(...)
+  return cor_yield(yield_prepend_scheduler, ...)
+end
+
+local function yield_append_scheduler(func, ...)
+  return func(), ...
+end
+
+function YieldAppend(...)
+  return cor_yield(yield_append_scheduler, ...)
+end
+
 local function threaded_scheduler(func, threadFunc, ...)
   return Cfx_CreateThread(function(...)
     return func(threadFunc(...))
