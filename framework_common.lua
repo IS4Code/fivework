@@ -7,6 +7,7 @@ local cor_yield = cor.yield
 local error = _ENV.error
 local rawset = _ENV.rawset
 local pcall = _ENV.pcall
+local t_pack = table.pack
 local t_unpack_orig = table.unpack
 
 local Cfx_SetTimeout = Citizen.SetTimeout
@@ -74,14 +75,14 @@ function YieldAppend(...)
   return cor_yield(yield_append_scheduler, ...)
 end
 
-local function threaded_scheduler(func, threadFunc, ...)
-  return Cfx_CreateThread(function(...)
-    return func(threadFunc(...))
-  end, ...)
+local function threaded_scheduler(func, threadFunc, args)
+  return Cfx_CreateThread(function()
+    return func(threadFunc(t_unpack(args)))
+  end)
 end
 
-function FW_Threaded(...)
-  return cor_yield(threaded_scheduler, ...)
+function FW_Threaded(func, ...)
+  return cor_yield(threaded_scheduler, func, t_pack(...))
 end
 
 -- events
