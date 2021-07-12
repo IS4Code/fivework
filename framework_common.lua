@@ -28,12 +28,12 @@ function FW_Async(func, ...)
   end
   on_yield = function(status, ...)
     if not status then
-      error(...)
+      return error(...)
     end
     if coroutine.status(thread) ~= 'dead' then
-      return schedule(...)
+      return false, schedule(...)
     end
-    return ...
+    return true, ...
   end
   return on_yield(cor_resume(thread, ...))
 end
@@ -66,7 +66,8 @@ function YieldPrepend(...)
 end
 
 local function yield_append_scheduler(func, ...)
-  return func(), ...
+  local continues, result = func()
+  return continues, result, ...
 end
 
 function YieldAppend(...)
