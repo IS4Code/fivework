@@ -47,6 +47,15 @@ function Sleep(...)
 end
 local Sleep = _ENV.Sleep
 
+local function yield_scheduler(func, ...)
+  func()
+  return ...
+end
+
+function Yield(...)
+  return cor_yield(yield_scheduler, ...)
+end
+
 -- events
 
 local registered_events = {}
