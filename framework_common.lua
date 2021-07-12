@@ -81,13 +81,17 @@ end
 
 local registered_events = {}
 
+local function async_results(done, ...)
+  return ...
+end
+
 public = setmetatable({}, {
   __newindex = function(self, key, value)
     if not registered_events[key] then
       registered_events[key] = FW_CreateCallbackHandler(key, function(...)
         local func = self[key]
         if func then
-          return FW_Async(func, ...)
+          return async_results(FW_Async(func, ...))
         end
       end)
     end
@@ -121,13 +125,13 @@ local function cmd_newindex(restricted)
       registered_commands[key] = RegisterCommand(key, function(source, args, rawCommand)
         local func = self[key]
         if func then
-          return FW_Async(function(...)
+          return async_results(FW_Async(function(...)
             Sleep(0)
             local result = FW_TriggerCallback('OnPlayerReceivedCommand', source, rawCommand, ...)
             if result ~= false then
               return after_command(source, rawCommand, pcall(func, source, rawCommand, ...))
             end
-          end, t_unpack(args))
+          end, t_unpack(args)))
         end
       end, restricted)
     end
