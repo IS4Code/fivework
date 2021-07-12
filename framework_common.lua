@@ -41,7 +41,9 @@ end
 local FW_Async = _ENV.FW_Async
 
 local function sleep_scheduler(func, ms, ...)
-  return Cfx_SetTimeout(ms, func, ...)
+  return Cfx_SetTimeout(ms, function(...)
+    func(...)
+  end, ...)
 end
 
 function Sleep(...)
