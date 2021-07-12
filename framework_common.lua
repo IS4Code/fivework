@@ -49,30 +49,20 @@ function Sleep(...)
 end
 local Sleep = _ENV.Sleep
 
-local function yield_scheduler(func, ...)
-  func()
-  return ...
+local function handle_yield_result(args, done, ...)
+  if done then
+    return ...
+  else
+    return t_unpack(args)
+  end
+end
+
+local function yield_scheduler(func, args)
+  return handle_yield_result(args, func())
 end
 
 function Yield(...)
-  return cor_yield(yield_scheduler, ...)
-end
-
-local function yield_prepend_scheduler(func, val)
-  return val, func()
-end
-
-function YieldPrepend(...)
-  return cor_yield(yield_prepend_scheduler, ...)
-end
-
-local function yield_append_scheduler(func, ...)
-  local continues, result = func()
-  return continues, result, ...
-end
-
-function YieldAppend(...)
-  return cor_yield(yield_append_scheduler, ...)
+  return cor_yield(yield_scheduler, t_pack(...))
 end
 
 local function threaded_scheduler(func, threadFunc, args)
