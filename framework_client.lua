@@ -65,6 +65,14 @@ do
 end
 local GetStringHash = _ENV.GetStringHash
 
+local function unpack_cond(value)
+  if type(value) == 'table' then
+    return t_unpack(value)
+  else
+    return value
+  end
+end
+
 -- remote execution
 
 local script_environment
@@ -623,48 +631,47 @@ local AddTextComponentInteger = _ENV.AddTextComponentInteger
 local AddTextComponentFormattedInteger = _ENV.AddTextComponentFormattedInteger
 local AddTextComponentFloat = _ENV.AddTextComponentFloat
 
-do
-  local function unpack_cond(value)
-    if type(value) == 'table' then
-      return t_unpack(value)
+function SetTextComponentsList(list)
+  for i = 1, list.n or #list do
+    local component = list[i]
+    if type(component) ~= 'table' then
+      component = {component}
+    end
+    local primary = component[1]
+    if primary == nil then
+      local ctype, cvalue = next(component)
+      if ctype then
+        _ENV['AddTextComponentSubstring'..ctype](unpack_cond(cvalue))
+      end
+    elseif type(primary) == 'string' then
+      AddTextComponentSubstringPlayerName(t_unpack(component))
+    elseif m_type(primary) == 'integer' then
+      if component[2] ~= nil then
+        AddTextComponentFormattedInteger(t_unpack(component))
+      else
+        AddTextComponentInteger(t_unpack(component))
+      end
+    elseif m_type(primary) == 'float' then
+      AddTextComponentFloat(t_unpack(component))
     else
-      return value
+      AddTextComponentSubstringPlayerName(tostring(primary))
     end
   end
-  
+end
+local SetTextComponentsList = _ENV.SetTextComponentsList
+
+function SetTextComponents(...)
+  return SetTextComponentsList(t_pack(...))
+end
+
+do
   local function parse_text_data(data)
     for field, value in pairs(data) do
-      if type(field) == 'string' then
-        if field == 'Components' then
-          for i, component in ipairs(value) do
-            if type(component) ~= 'table' then
-              component = {component}
-            end
-            local primary = component[1]
-            if primary == nil then
-              local ctype, cvalue = next(component)
-              if ctype then
-                _ENV['AddTextComponentSubstring'..ctype](unpack_cond(cvalue))
-              end
-            elseif type(primary) == 'string' then
-              AddTextComponentSubstringPlayerName(t_unpack(component))
-            elseif m_type(primary) == 'integer' then
-              if component[2] ~= nil then
-                AddTextComponentFormattedInteger(t_unpack(component))
-              else
-                AddTextComponentInteger(t_unpack(component))
-              end
-            elseif m_type(primary) == 'float' then
-              AddTextComponentFloat(t_unpack(component))
-            else
-              AddTextComponentSubstringPlayerName(tostring(primary))
-            end
-          end
-        else
-          _ENV['SetText'..field](unpack_cond(value))
-        end
+      if type(field) == 'string' and field ~= 'n' then
+        _ENV['SetText'..field](unpack_cond(value))
       end
     end
+    SetTextComponentsList(data)
   end
   
   local function text_formatter(beginFunc, endFunc)
