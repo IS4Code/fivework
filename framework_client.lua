@@ -1066,7 +1066,9 @@ do
         gc = true
       end
     end
-    return setmetatable({__data = id}, gc and scaleform_mt_gc or scaleform_mt)
+    if id and id ~= 0 then
+      return setmetatable({__data = id}, gc and scaleform_mt_gc or scaleform_mt)
+    end
   end
   
   local function global_scaleform(beginFunc)
