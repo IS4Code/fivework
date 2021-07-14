@@ -7,14 +7,17 @@ local cor_yield = cor.yield
 local error = _ENV.error
 local rawset = _ENV.rawset
 local pcall = _ENV.pcall
+local ipairs = _ENV.ipairs
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
+local t_insert = table.insert
 
 local Cfx_SetTimeout = Citizen.SetTimeout
 local Cfx_CreateThread = Citizen.CreateThread
+local Cfx_Await = Citizen.Await
 
-local function t_unpack(t)
-  return t_unpack_orig(t, 1, t.n)
+local function t_unpack(t, i)
+  return t_unpack_orig(t, i or 1, t.n)
 end
 
 -- async processing
@@ -75,6 +78,57 @@ end
 
 function FW_Threaded(func, ...)
   return cor_yield(threaded_scheduler, func, t_pack(...))
+end
+
+local function on_next(obj, onresult, onerror)
+  local result = obj.__result
+  if result then
+    if result[1] then
+      if onresult then
+        onresult(t_unpack(result, 2))
+      end
+    else
+      if onerror then
+        onerror(t_unpack(result, 2))
+      end
+    end
+  else
+    local cont = obj.__cont
+    if not cont then
+      cont = {}
+      obj.__cont = cont
+    end
+    t_insert(cont, {onresult, onerror})
+  end
+  return obj
+end
+
+local function make_promise(func, ...)
+  local obj = {next = on_next}
+  return obj, FW_Async(function(...)
+    local result = t_pack(pcall(func, ...))
+    obj.__result = result
+    local cont = obj.__cont
+    if cont then
+      obj.__cont = nil
+      for i, c in ipairs(cont) do
+        local onresult, onerror = c[1], c[2]
+        if result[1] then
+          if onresult then
+            onresult(t_unpack(result, 2))
+          end
+        else
+          if onerror then
+            onerror(t_unpack(result, 2))
+          end
+        end
+      end
+    end
+  end, ...)
+end
+
+function FW_Awaited(func, ...)
+  return Cfx_Await(make_promise(func, ...))
 end
 
 -- events
