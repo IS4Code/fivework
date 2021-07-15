@@ -93,6 +93,19 @@ do
     end
   end
   
+  local function validate(arg, validator)
+    if validator then
+      if type(validator) == 'boolean' then
+        return true
+      elseif type(validator) == 'table' then
+        return validator[arg]
+      elseif type(validator) == 'function' then
+        local status, result = pcall(validator, arg)
+        return status and result
+      end
+    end
+  end
+  
   observe_value = function(state, arg, cache)
     if cache[arg] or not arg or arg ~= arg then
       return
@@ -100,21 +113,8 @@ do
     cache[arg] = true
     
     for name, v in pairs(observers) do
-      local validator = v[1]
-      if validator then
-        local valid
-        if type(validator) == 'boolean' then
-          valid = true
-        elseif type(validator) == 'table' then
-          valid = validator[arg]
-        elseif type(validator) == 'function' then
-          local status, result = pcall(validator, arg)
-          valid = status and result
-        end
-        
-        if valid then
-          set_state(state, name, cache, arg, t_unpack(v, 2))
-        end
+      if validate(arg, v[1]) then
+        set_state(state, name, cache, arg, t_unpack(v, 2))
       end
     end
     
