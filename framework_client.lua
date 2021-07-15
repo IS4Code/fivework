@@ -107,14 +107,14 @@ do
   end
   
   observe_value = function(state, arg, cache)
-    if cache[arg] or not arg or arg ~= arg then
+    if arg == nil or arg ~= arg or cache[arg] then
       return
     end
     cache[arg] = true
     
-    for name, v in pairs(observers) do
-      if validate(arg, v[1]) then
-        set_state(state, name, cache, arg, t_unpack(v, 2))
+    for key, v in pairs(observers) do
+      if validate(arg, v[2]) then
+        set_state(state, v[1], cache, arg, t_unpack(v, 3))
       end
     end
     
@@ -130,9 +130,9 @@ do
     local cache = {}
     
     local state = {}
-    for name, v in pairs(observers) do 
-      if v[1] == nil then
-        set_state(state, name, cache, t_unpack(v, 2))
+    for key, v in pairs(observers) do 
+      if v[2] == nil then
+        set_state(state, v[1], cache, t_unpack(v, 3))
       end
     end
     
@@ -148,13 +148,13 @@ do
   
   function FW_RegisterObserver(name, validator, ...)
     if type(validator) == 'string' then
-      validator = assert(_ENV[validator], 'variable not found')
+      validator = assert(script_environment[validator], 'variable not found')
     end
-    observers[name] = t_pack(validator, ...)
+    observers[j_encode{name, ...}] = t_pack(name, validator, ...)
   end
   
-  function FW_UnregisterObserver(name)
-    observers[name] = nil
+  function FW_UnregisterObserver(name, ...)
+    observers[j_encode{name, ...}] = nil
   end
 end
 
