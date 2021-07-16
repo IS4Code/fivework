@@ -727,18 +727,23 @@ do
   
   Cfx_CreateThread(function()
     while true do
-      local pressed = {}
-      local released = {}
+      local pressed, released
       for k, info in pairs(registered_controls) do
         if IsControlJustPressed(t_unpack(info)) then
+          if not pressed then
+            pressed = {}
+          end
           pressed[info[2]] = info[1]
         end
         if IsControlJustReleased(t_unpack(info)) then
+          if not released then
+            released = {}
+          end
           released[info[2]] = info[1]
         end
       end
-      if next(pressed) or next(released) then
-        FW_TriggerNetCallback('OnPlayerKeyStateChange', pressed, released)
+      if pressed or released then
+        FW_TriggerNetCallback('OnPlayerKeyStateChange', pressed or {}, released or {})
       end
       Cfx_Wait(0)
     end
@@ -749,54 +754,83 @@ end
 
 do
   local registered_updates = {}
-  local interval = 0
+  local thread_running = {}
+  local default_interval = 0
   
-  local function update_key(...)
-    return j_encode(t_pack(...))
+  local function launch_thread(interval)
+    if not thread_running[interval] then
+      thread_running[interval] = true
+      Cfx_CreateThread(function()
+        while true do
+          local updates
+          local any
+          for k, info in pairs(registered_updates) do
+            if info[1] == interval then
+              any = true
+              local func = script_environment[info[3]]
+              local newvalue = func and func(t_unpack(info, 4))
+              local oldvalue = info[2]
+              if oldvalue ~= newvalue and (oldvalue == oldvalue or newvalue == newvalue) then
+                info[2] = newvalue
+                if not updates then
+                  updates = {}
+                end
+                updates[t_pack(t_unpack(info, 3))] = {newvalue, oldvalue}
+              end
+            end
+          end
+          if not any then
+            thread_running[interval] = nil
+            return
+          end
+          if updates then
+            FW_TriggerNetCallback('OnPlayerUpdate', updates)
+          end
+          Cfx_Wait(interval)
+        end
+      end)
+    end
   end
   
   function FW_RegisterUpdate(fname, ...)
     local func = script_environment[fname]
     local value = func and func(...)
-    registered_updates[update_key(fname, ...)] = t_pack(value, fname, ...)
+    registered_updates[j_encode{fname, ...}] = t_pack(default_interval, value, fname, ...)
+    launch_thread(default_interval)
   end
   
   function FW_UnregisterUpdate(...)
-    registered_updates[update_key(...)] = nil
+    registered_updates[j_encode{...}] = nil
   end
   
   function FW_IsUpdateRegistered(...)
-    return registered_updates[update_key(...)] ~= nil
+    return registered_updates[j_encode{...}] ~= nil
   end
   
-  function FW_SetUpdateInterval(newinterval)
-    interval = newinterval
-  end
-  
-  function FW_GetUpdateInterval()
-    return interval
-  end
-  
-  Cfx_CreateThread(function()
-    while true do
-      local updates = {}
-      for k, info in pairs(registered_updates) do
-        local func = script_environment[info[2]]
-        if func then
-          local newvalue = func(t_unpack(info, 3))
-          local oldvalue = info[1]
-          if oldvalue ~= newvalue then
-            info[1] = newvalue
-            updates[t_pack(t_unpack(info, 2))] = {newvalue, oldvalue}
-          end
-        end
+  function FW_SetUpdateInterval(newinterval, fname, ...)
+    if fname then
+      local info = registered_updates[j_encode{fname, ...}]
+      if info then
+        info[1] = newinterval
+        launch_thread(newinterval)
+        return true
       end
-      if next(updates) then
-        FW_TriggerNetCallback('OnPlayerUpdate', updates)
-      end
-      Cfx_Wait(interval)
+    else
+      default_interval = newinterval
+      return true
     end
-  end)
+  end
+  
+  function FW_GetUpdateInterval(fname, ...)
+    if fname then
+      local info = registered_updates[j_encode{fname, ...}]
+      if info then
+        return info[1]
+      end
+    else
+      return default_interval
+    end
+  end
 end
 
 -- enumerators
