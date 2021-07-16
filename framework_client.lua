@@ -844,6 +844,8 @@ local GetActivePlayers = _ENV.GetActivePlayers
 local GetPlayerPed = _ENV.GetPlayerPed
 local GetEntityAttachedTo = _ENV.GetEntityAttachedTo
 local GetEntityCoords = _ENV.GetEntityCoords
+local PlayerId = _ENV.PlayerId
+local GetVehiclePedIsIn = _ENV.GetVehiclePedIsIn
 
 do
   local entity_enumerator = {
@@ -896,9 +898,10 @@ do
   local FindFirstVehicle = _ENV.FindFirstVehicle
   local FindNextVehicle = _ENV.FindNextVehicle
   local EndFindVehicle = _ENV.EndFindVehicle
-  function EnumerateVehicles()
+  function EnumerateAllVehicles()
     return enumerate_entities(FindFirstVehicle, FindNextVehicle, EndFindVehicle)
   end
+  local EnumerateAllVehicles = _ENV.EnumerateAllVehicles
   
   local FindFirstPickup = _ENV.FindFirstPickup
   local FindNextPickup = _ENV.FindNextPickup
@@ -906,6 +909,19 @@ do
   function EnumeratePickups()
     return enumerate_entities(FindFirstPickup, FindNextPickup, EndFindPickup)
   end
+  local EnumeratePickups = _ENV.EnumeratePickups
+  
+  function EnumerateVehicles()
+    return cor_wrap(function()
+      for veh in EnumerateAllVehicles() do
+        local plVeh = GetVehiclePedIsIn(GetPlayerPed(PlayerId()))
+        if veh ~= plVeh then
+          cor_yield(veh)
+        end
+      end
+    end)
+  end
+  local EnumerateVehicles = _ENV.EnumerateVehicles
 
   function GetPlayerFromPed(ped)
     for _, i in ipairs(GetActivePlayers()) do
@@ -922,6 +938,41 @@ do
         if not GetPlayerFromPed(ped) then
           cor_yield(ped)
         end
+      end
+    end)
+  end
+  local EnumeratePeds = _ENV.EnumeratePeds
+  
+  function EnumerateEntities()
+    return cor_wrap(function()
+      for e in EnumeratePeds() do
+        cor_yield(e)
+      end
+      for e in EnumerateVehicles() do
+        cor_yield(e)
+      end
+      for e in EnumerateAllObjects() do
+        cor_yield(e)
+      end
+      for e in EnumeratePickups() do
+        cor_yield(e)
+      end
+    end)
+  end
+  
+  function EnumerateAllEntities()
+    return cor_wrap(function()
+      for e in EnumerateAllPeds() do
+        cor_yield(e)
+      end
+      for e in EnumerateAllVehicles() do
+        cor_yield(e)
+      end
+      for e in EnumerateAllObjects() do
+        cor_yield(e)
+      end
+      for e in EnumeratePickups() do
+        cor_yield(e)
       end
     end)
   end
