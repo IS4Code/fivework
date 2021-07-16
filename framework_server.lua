@@ -158,7 +158,7 @@ local NetworkGetEntityOwner = _ENV.NetworkGetEntityOwner
 local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
 
 do
-  local continuations = {}
+  local player_continuations = {}
   
   local function newid()
     local chars = {}
@@ -168,7 +168,7 @@ do
     return str_char(t_unpack(chars))
   end
   
-  local function newtoken()
+  local function newtoken(continuations)
     local token
     repeat
       token = newid()
@@ -178,7 +178,12 @@ do
   
   local function player_scheduler_factory(name)
     return function(callback, player, ...)
-      local token = newtoken()
+      local continuations = player_continuations[player]
+      if not continuations then
+        continuations = {}
+        player_continuations[player] = continuations
+      end
+      local token = newtoken(continuations)
       continuations[token] = function(...)
         continuations[token] = nil
         return callback(...)
@@ -239,11 +244,25 @@ do
     local source = _ENV.source
     retrieve_observed_state(source, args)
     
-    local handler = continuations[token]
-    if handler then
-      return handler(status, t_unpack(args))
-    elseif not status then
-      error(t_unpack(args))
+    local continuations = player_continuations[source]
+    if continuations then
+      local handler = continuations[token]
+      if handler then
+        return handler(status, t_unpack(args))
+      elseif not status then
+        error(t_unpack(args))
+      end
+    end
+  end)
+  
+  AddEventHandler('playerDropped', function(reason)
+    local source = _ENV.source
+    local continuations = player_continuations[source]
+    if continuations then
+      for token, handler in pairs(continuations) do
+        handler(false, "player dropped: "..reason)
+      end
+      player_continuations[source] = nil
     end
   end)
   
