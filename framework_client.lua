@@ -758,45 +758,48 @@ do
   local default_interval = 0
   
   local function launch_thread(interval)
-    if not thread_running[interval] then
+    if interval then
+      if thread_running[interval] then
+        return
+      end
       thread_running[interval] = true
-      Cfx_CreateThread(function()
-        while true do
-          local updates
-          local any
-          for k, info in pairs(registered_updates) do
-            if info[1] == interval then
-              any = true
-              local func = script_environment[info[3]]
-              local newvalue = func and func(t_unpack(info, 4))
-              local oldvalue = info[2]
-              if oldvalue ~= newvalue and (oldvalue == oldvalue or newvalue == newvalue) then
-                info[2] = newvalue
-                if not updates then
-                  updates = {}
-                end
-                updates[t_pack(t_unpack(info, 3))] = {newvalue, oldvalue}
+    end
+    Cfx_CreateThread(function()
+      while true do
+        local updates
+        local any
+        for k, info in pairs(registered_updates) do
+          if info[1] == interval then
+            any = true
+            local func = script_environment[info[3]]
+            local newvalue = func and func(t_unpack(info, 4))
+            local oldvalue = info[2]
+            if oldvalue ~= newvalue and (oldvalue == oldvalue or newvalue == newvalue) then
+              info[2] = newvalue
+              if not updates then
+                updates = {}
               end
+              updates[t_pack(t_unpack(info, 3))] = {newvalue, oldvalue}
             end
           end
-          if not any then
-            thread_running[interval] = nil
-            return
-          end
-          if updates then
-            FW_TriggerNetCallback('OnPlayerUpdate', updates)
-          end
-          Cfx_Wait(interval)
         end
-      end)
-    end
+        if interval and not any then
+          thread_running[interval] = nil
+          return
+        end
+        if updates then
+          FW_TriggerNetCallback('OnPlayerUpdate', updates)
+        end
+        Cfx_Wait(interval or default_interval)
+      end
+    end)
   end
+  launch_thread(nil)
   
   function FW_RegisterUpdate(fname, ...)
     local func = script_environment[fname]
     local value = func and func(...)
-    registered_updates[j_encode{fname, ...}] = t_pack(default_interval, value, fname, ...)
-    launch_thread(default_interval)
+    registered_updates[j_encode{fname, ...}] = t_pack(nil, value, fname, ...)
   end
   
   function FW_UnregisterUpdate(...)
@@ -812,7 +815,9 @@ do
       local info = registered_updates[j_encode{fname, ...}]
       if info then
         info[1] = newinterval
-        launch_thread(newinterval)
+        if newinterval then
+          launch_thread(newinterval)
+        end
         return true
       end
     else
