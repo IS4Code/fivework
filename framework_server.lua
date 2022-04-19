@@ -88,12 +88,23 @@ do
   local callback_info = {}
   
   function FW_CreateCallbackHandler(name, handler)
-    return callback_info[name](handler)
+    local registerer = callback_info[name]
+    if not registerer then
+      return error("Callback '"..tostring(name).."' was not defined!")
+    end
+    return registerer(handler)
+  end
+  
+  local function warn_if_registered(name)
+    if callback_info[name] then
+      return error("Callback '"..tostring(name).."' is already registered!")
+    end
   end
   
   local net_callback_handlers = {}
   
   function FW_RegisterCallback(name, eventname, has_source, processor)
+    warn_if_registered(name)
     callback_info[name] = function(handler)
       if processor then
         local handler_old = handler
@@ -123,12 +134,14 @@ do
   end
   
   function FW_RegisterPlainCallback(name)
+    warn_if_registered(name)
     callback_info[name] = function()
       return true
     end
   end
   
   function FW_RegisterNetCallback(name, processor)
+    warn_if_registered(name)
     callback_info[name] = function(handler)
       if processor then
         local handler_old = handler
