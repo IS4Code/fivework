@@ -586,3 +586,13 @@ function PlayerIdentifiers(player)
 		end
   end)
 end
+
+local GetPlayers = _ENV.GetPlayers
+
+function AllPlayers()
+  return cor_wrap(function()
+		for _, playerid in ipairs(GetPlayers()) do 
+      cor_yield(tonumber(playerid) or playerid)
+		end
+  end)
+end
