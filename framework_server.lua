@@ -240,7 +240,7 @@ do
   end
   
   local function owner_scheduler_factory_no_wait(name)
-    name = name..'NetworkedArgument'
+    name = name..'NetworkIdIn1'
     return function(callback, entity, ...)
       local player = NetworkGetEntityOwner(entity)
       if not player then return callback(false) end
