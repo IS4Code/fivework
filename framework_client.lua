@@ -73,6 +73,10 @@ local function unpack_cond(value)
   end
 end
 
+local function is_property_key(field)
+  return type(field) == 'string' and field ~= 'n'
+end
+
 -- remote execution
 
 local script_environment
@@ -451,8 +455,96 @@ do
           end, f_inner
         end
       end
+    end,
+    ['PropertiesOf(%d+)$'] = function(name, initial)
+      initial = tonumber(initial) or 1
+      if initial == 0 then
+        return function(...)
+          local args = t_pack(...)
+          for i = 1, args.n do
+            local data = args[i]
+            if data then
+              for field, value in pairs(data) do
+                if is_property_key(field) then
+                  _ENV[name..field](unpack_cond(value))
+                end
+              end
+            end
+          end
+        end
+      elseif initial == 1 then
+        return function(target, ...)
+          local args = t_pack(...)
+          for i = 1, args.n do
+            local data = args[i]
+            if data then
+              for field, value in pairs(data) do
+                if is_property_key(field) then
+                  _ENV[name..field](target, unpack_cond(value))
+                end
+              end
+            end
+          end
+        end
+      elseif initial == 2 then
+        return function(target1, target2, ...)
+          local args = t_pack(...)
+          for i = 1, args.n do
+            local data = args[i]
+            if data then
+              for field, value in pairs(data) do
+                if is_property_key(field) then
+                  _ENV[name..field](target1, target2, unpack_cond(value))
+                end
+              end
+            end
+          end
+        end
+      elseif initial == 3 then
+        return function(target1, target2, target3, ...)
+          local args = t_pack(...)
+          for i = 1, args.n do
+            local data = args[i]
+            if data then
+              for field, value in pairs(data) do
+                if is_property_key(field) then
+                  _ENV[name..field](target1, target2, target3, unpack_cond(value))
+                end
+              end
+            end
+          end
+        end
+      else
+        return function(...)
+          local args = t_pack(...)
+          for i = initial + 1, args.n do
+            local data = args[i]
+            if data then
+              for field, value in pairs(data) do
+                if is_property_key(field) then
+                  local args2 = {}
+                  for i = 1, initial do
+                    args2[i] = args[i]
+                  end
+                  if type(value) == 'table' then
+                    for i = 1, value.n or #value do
+                      args2[initial + i] = value[i]
+                    end
+                    args2.n = initial + (value.n or #value)
+                  else
+                    args2[initial + 1] = value
+                    args2.n = initial + 1
+                  end
+                  _ENV[name..field](t_unpack(args2))
+                end
+              end
+            end
+          end
+        end
+      end
     end
   }
+  func_patterns['Properties$'] = func_patterns['PropertiesOf(%d+)$']
   
   local function find_script_var(key)
     if key == '_G' then
@@ -521,7 +613,7 @@ do
     for pattern, proc in pairs(func_patterns) do
       f, f_inner = match_result(name, proc, str_find(name, pattern))
       if f then
-        return f, f_inner
+        return f, f_inner or f
       end
     end
   end
@@ -679,7 +771,7 @@ end
 do
   local function parse_text_data(data)
     for field, value in pairs(data) do
-      if type(field) == 'string' and field ~= 'n' then
+      if is_property_key(field) then
         _ENV['SetText'..field](unpack_cond(value))
       end
     end
