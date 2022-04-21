@@ -17,6 +17,7 @@ local m_huge = math.huge
 local ipairs = _ENV.ipairs
 local pairs = _ENV.pairs
 local tostring = _ENV.tostring
+local tonumber = _ENV.tonumber
 local j_encode = json.encode
 local j_decode = json.decode
 local cor_wrap = coroutine.wrap
@@ -581,7 +582,7 @@ local GetPlayerIdentifier = _ENV.GetPlayerIdentifier
 function PlayerIdentifiers(player)
   return cor_wrap(function()
     local num = GetNumPlayerIdentifiers(player)
-		for i = 0, num-1 do
+    for i = 0, num-1 do
       local id = GetPlayerIdentifier(player, i)
       if id then
         local i, j = str_find(id, ':')
@@ -589,7 +590,7 @@ function PlayerIdentifiers(player)
           cor_yield(str_sub(id, 1, i - 1), str_sub(id, j + 1))
         end
       end
-		end
+    end
   end)
 end
 
@@ -597,8 +598,8 @@ local GetPlayers = _ENV.GetPlayers
 
 function AllPlayers()
   return cor_wrap(function()
-		for _, playerid in ipairs(GetPlayers()) do 
+    for _, playerid in ipairs(GetPlayers()) do 
       cor_yield(tonumber(playerid) or playerid)
-		end
+    end
   end)
 end
