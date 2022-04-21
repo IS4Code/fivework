@@ -173,6 +173,15 @@ local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
 do
   local player_continuations = {}
   
+  local function get_continuations(player)
+    local continuations = player_continuations[player]
+    if not continuations then
+      continuations = {}
+      player_continuations[player] = continuations
+    end
+    return continuations
+  end
+  
   local function newid()
     local chars = {}
     for i = 1, 32 do
@@ -191,11 +200,7 @@ do
   
   local function player_scheduler_factory(name)
     return function(callback, player, ...)
-      local continuations = player_continuations[player]
-      if not continuations then
-        continuations = {}
-        player_continuations[player] = continuations
-      end
+      local continuations = get_continuations(player)
       local token = newtoken(continuations)
       continuations[token] = function(...)
         continuations[token] = nil
@@ -223,7 +228,8 @@ do
       local player = NetworkGetEntityOwner(entity)
       if not player then return callback(false) end
       entity = NetworkGetNetworkIdFromEntity(entity)
-      local token = newtoken()
+      local continuations = get_continuations(player)
+      local token = newtoken(continuations)
       continuations[token] = function(...)
         continuations[token] = nil
         return callback(...)
