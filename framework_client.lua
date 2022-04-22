@@ -75,8 +75,12 @@ local function unpack_cond(value)
   end
 end
 
-local function is_property_key(field)
-  return type(field) == 'string' and field ~= 'n'
+local function get_property_key(field)
+  if type(field) == 'string' and field ~= 'n' then
+    return field
+  elseif type(field) == 'table' then
+    return get_property_key(field[1])
+  end
 end
 
 -- remote execution
@@ -483,8 +487,9 @@ do
             local data = args[i]
             if data then
               for field, value in pairs(data) do
-                if is_property_key(field) then
-                  _ENV[name..field](unpack_cond(value))
+                local key = get_property_key(field)
+                if key then
+                  _ENV[name..key](unpack_cond(value))
                 end
               end
             end
@@ -497,8 +502,9 @@ do
             local data = args[i]
             if data then
               for field, value in pairs(data) do
-                if is_property_key(field) then
-                  _ENV[name..field](target, unpack_cond(value))
+                local key = get_property_key(field)
+                if key then
+                  _ENV[name..key](target, unpack_cond(value))
                 end
               end
             end
@@ -511,8 +517,9 @@ do
             local data = args[i]
             if data then
               for field, value in pairs(data) do
-                if is_property_key(field) then
-                  _ENV[name..field](target1, target2, unpack_cond(value))
+                local key = get_property_key(field)
+                if key then
+                  _ENV[name..key](target1, target2, unpack_cond(value))
                 end
               end
             end
@@ -525,7 +532,8 @@ do
             local data = args[i]
             if data then
               for field, value in pairs(data) do
-                if is_property_key(field) then
+                local key = get_property_key(field)
+                if key then
                   _ENV[name..field](target1, target2, target3, unpack_cond(value))
                 end
               end
@@ -539,7 +547,8 @@ do
             local data = args[i]
             if data then
               for field, value in pairs(data) do
-                if is_property_key(field) then
+                local key = get_property_key(field)
+                if key then
                   local args2 = {}
                   for i = 1, initial do
                     args2[i] = args[i]
@@ -553,7 +562,7 @@ do
                     args2[initial + 1] = value
                     args2.n = initial + 1
                   end
-                  _ENV[name..field](t_unpack(args2))
+                  _ENV[name..key](t_unpack(args2))
                 end
               end
             end
@@ -691,6 +700,7 @@ do
     return HasModelLoaded(hash) or cor_yield(model_scheduler, hash, ...)
   end
 end
+local LoadModel = _ENV.LoadModel
 
 do
   local function collision_scheduler(callback, entity, x, y, z, timeout)
@@ -716,6 +726,35 @@ do
     return HasCollisionLoadedAroundEntity(entity) or cor_yield(collision_scheduler, entity, ...)
   end
 end
+
+do
+  local IsScreenFadedIn = _ENV.IsScreenFadedIn
+  local IsScreenFadedOut = _ENV.IsScreenFadedOut
+  local DoScreenFadeIn = _ENV.DoScreenFadeIn
+  local DoScreenFadeOut = _ENV.DoScreenFadeOut
+
+  local function fade_scheduler(callback, func, check, duration)
+    return Cfx_CreateThread(function()
+      func(duration)
+      while not check() do
+        Cfx_Wait(0)
+      end
+      return callback(true)
+    end)
+  end
+  
+  function FadeInScreen(...)
+    if IsScreenFadedIn() then return false end
+    return cor_yield(fade_scheduler, DoScreenFadeIn, IsScreenFadedIn, ...)
+  end
+  
+  function FadeOutScreen(...)
+    if IsScreenFadedOut() then return false end
+    return cor_yield(fade_scheduler, DoScreenFadeOut, IsScreenFadedOut, ...)
+  end
+end
+local FadeInScreen = _ENV.FadeInScreen
+local FadeOutScreen = _ENV.FadeOutScreen
 
 -- text drawing
 
@@ -789,8 +828,9 @@ end
 do
   local function parse_text_data(data)
     for field, value in pairs(data) do
-      if is_property_key(field) then
-        _ENV['SetText'..field](unpack_cond(value))
+      local key = get_property_key(field)
+      if key then
+        _ENV['SetText'..key](unpack_cond(value))
       end
     end
     SetTextComponentsList(data)
@@ -1336,4 +1376,102 @@ do
   
   ScaleformScriptHudMovie = local_scaleform(BeginScaleformScriptHudMovieMethod)
   ScaleformMinimapMovie = local_scaleform(CallMinimapScaleformFunction)
+end
+
+-- spawning
+
+do
+  local SetEntityVisible = _ENV.SetEntityVisible
+  local SetEntityCollision = _ENV.SetEntityCollision
+  local FreezeEntityPosition = _ENV.FreezeEntityPosition
+  local IsPedFatallyInjured = _ENV.IsPedFatallyInjured
+  local ClearPedTasksImmediately = _ENV.ClearPedTasksImmediately
+  local SetPlayerInvincible = _ENV.SetPlayerInvincible
+  local IsPedInAnyVehicle = _ENV.IsPedInAnyVehicle
+
+  function ToggleControl(controllable, flags)
+    local player = PlayerId()
+    local ped = PlayerPedId()
+    
+    SetPlayerControl(player, controllable, flags or 0)
+  
+    FreezeEntityPosition(ped, not controllable)
+    SetPlayerInvincible(player, not controllable)
+    
+    if not controllable or not IsPedInAnyVehicle(ped) then
+      SetEntityCollision(ped, controllable)
+    end
+    
+    if not controllable and not IsPedFatallyInjured(ped) then
+      ClearPedTasksImmediately(ped)
+    end
+  end
+  
+  local ToggleControl = _ENV.ToggleControl
+  local RequestCollisionAtCoord = _ENV.RequestCollisionAtCoord
+  local SetEntityCoordsNoOffset = _ENV.SetEntityCoordsNoOffset
+  local NetworkResurrectLocalPlayer = _ENV.NetworkResurrectLocalPlayer
+  local ClearPlayerWantedLevel = _ENV.ClearPlayerWantedLevel
+  local ClearPedBloodDamage = _ENV.ClearPedBloodDamage
+  local ClearPedWetness = _ENV.ClearPedWetness
+  local ClearPedEnvDirt = _ENV.ClearPedEnvDirt
+  local SetPedConfigFlag = _ENV.SetPedConfigFlag
+  local ShutdownLoadingScreen = _ENV.ShutdownLoadingScreen
+  
+  function SpawnIn(model, modelProperties, x, y, z, heading, entityProperties, fade)
+    if fade then
+      FadeOutScreen(fade)
+    end
+    
+    ToggleControl(false)
+    local ped = PlayerPedId()
+    SetEntityVisible(ped, false, false)
+    
+    if LoadModel(model) then
+      SetPlayerModel(PlayerId(), model)
+      
+      if modelProperties then
+        for field, value in pairs(modelProperties) do
+          local key = get_property_key(field)
+          if key then
+            _ENV['SetPed'..key](ped, unpack_cond(value))
+          end
+        end
+      end
+    end
+    
+    ped = PlayerPedId()
+    RequestCollisionAtCoord(x, y, z)
+    SetEntityCoordsNoOffset(ped, x, y, z, false, false, false, true)
+    NetworkResurrectLocalPlayer(x, y, z, heading, true, true, false)
+    ClearPedTasksImmediately(ped)
+    
+    RemoveAllPedWeapons(ped)
+    ClearPlayerWantedLevel(PlayerId())
+    ClearPedBloodDamage(ped)
+    ClearPedWetness(ped)
+    ClearPedEnvDirt(ped)
+    
+    SetPedConfigFlag(ped, 32, false) --PED_FLAG_CAN_FLY_THRU_WINDSCREEN
+    SetPedConfigFlag(ped, 184, true) --_PED_FLAG_DISABLE_SHUFFLING_TO_DRIVER_SEAT
+    
+    if entityProperties then
+      for field, value in pairs(entityProperties) do
+        local key = get_property_key(field)
+        if key then
+          _ENV['SetPed'..key](ped, unpack_cond(value))
+        end
+      end
+    end
+    
+    LoadCollisionAroundEntity(ped)
+    SetEntityVisible(ped, true, false)
+    ShutdownLoadingScreen()
+    
+    if fade then
+      FadeInScreen(fade)
+    end
+    
+    ToggleControl(true)
+  end
 end
