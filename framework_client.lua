@@ -44,6 +44,8 @@ local Cfx_Wait = Citizen.Wait
 local Cfx_CreateThread = Citizen.CreateThread
 local CancelEvent = _ENV.CancelEvent
 local GetHashKey = _ENV.GetHashKey
+local PlayerId = _ENV.PlayerId
+local PlayerPedId = _ENV.PlayerPedId
 
 local FW_Async = _ENV.FW_Async
 
@@ -454,6 +456,22 @@ do
             return t_unpack(t)
           end, f_inner
         end
+      end
+    end,
+    ['Self$'] = function(name)
+      local f, f_inner = find_func(name)
+      if type(f) == 'function' then
+        return function(...)
+          return f(PlayerId(), ...)
+        end, f_inner
+      end
+    end,
+    ['SelfPed$'] = function(name)
+      local f, f_inner = find_func(name)
+      if type(f) == 'function' then
+        return function(...)
+          return f(PlayerPedId(), ...)
+        end, f_inner
       end
     end,
     ['PropertiesOf(%d+)$'] = function(name, initial)
@@ -948,7 +966,6 @@ local GetActivePlayers = _ENV.GetActivePlayers
 local GetPlayerPed = _ENV.GetPlayerPed
 local GetEntityAttachedTo = _ENV.GetEntityAttachedTo
 local GetEntityCoords = _ENV.GetEntityCoords
-local PlayerId = _ENV.PlayerId
 local GetVehiclePedIsIn = _ENV.GetVehiclePedIsIn
 
 do
