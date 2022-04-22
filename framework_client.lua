@@ -679,18 +679,18 @@ do
 
   local function model_scheduler(callback, hash, timeout)
     return Cfx_CreateThread(function()
-    	RequestModel(hash)
+      RequestModel(hash)
       local time = GetGameTimer()
-    	while not HasModelLoaded(hash) do
-    		RequestModel(hash)
-    		Cfx_Wait(0)
+      while not HasModelLoaded(hash) do
+        RequestModel(hash)
+        Cfx_Wait(0)
         if timeout and timeout >= 0 then
           local diff = GetTimeDifference(GetGameTimer(), time)
           if diff > timeout then
             return callback(false)
           end
         end
-    	end
+      end
       return model_finalizer(hash, callback(true))
     end)
   end
@@ -1189,9 +1189,9 @@ local HasScaleformMovieLoaded = _ENV.HasScaleformMovieLoaded
 do
   local function return_scheduler(callback, retval)
     return Cfx_CreateThread(function()
-    	while not IsScaleformMovieMethodReturnValueReady(retval) do
+      while not IsScaleformMovieMethodReturnValueReady(retval) do
         Cfx_Wait(0)
-    	end
+      end
       callback(true)
     end)
   end
@@ -1222,9 +1222,9 @@ do
   
   local function scaleform_loaded_scheduler(callback, scaleform)
     return Cfx_CreateThread(function()
-    	while not HasScaleformMovieLoaded(scaleform) do
-    		Cfx_Wait(0)
-    	end
+      while not HasScaleformMovieLoaded(scaleform) do
+        Cfx_Wait(0)
+      end
       callback(true)
     end)
   end
