@@ -1429,6 +1429,7 @@ do
     
     if LoadModel(model) then
       SetPlayerModel(PlayerId(), model)
+      ped = PlayerPedId()
       
       if modelProperties then
         for field, value in pairs(modelProperties) do
@@ -1440,7 +1441,6 @@ do
       end
     end
     
-    ped = PlayerPedId()
     RequestCollisionAtCoord(x, y, z)
     SetEntityCoordsNoOffset(ped, x, y, z, false, false, false, true)
     NetworkResurrectLocalPlayer(x, y, z, heading, true, true, false)
