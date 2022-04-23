@@ -42,7 +42,7 @@ end
 
 local function error_or_return(status, ...)
   if not status then
-    return error(...)
+    return error(tostring(...))
   end
   return ...
 end
