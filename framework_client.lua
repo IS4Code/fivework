@@ -36,6 +36,8 @@ local Vdist = _ENV.Vdist
 local TriggerServerEvent = _ENV.TriggerServerEvent
 local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
 local NetworkGetEntityFromNetworkId = _ENV.NetworkGetEntityFromNetworkId
+local NetworkDoesNetworkIdExist = _ENV.NetworkDoesNetworkIdExist
+local DoesEntityExist = _ENV.DoesEntityExist
 local GetGameTimer = _ENV.GetGameTimer
 local GetTimeDifference = _ENV.GetTimeDifference
 local GetTimeOffset = _ENV.GetTimeOffset
@@ -266,18 +268,34 @@ end
 -- remote execution
 
 do
+  local function entity_from_network_id(id)
+    if NetworkDoesNetworkIdExist(id) then
+      return NetworkGetEntityFromNetworkId(id) 
+    else
+      return nil
+    end
+  end
+  
+  local function network_id_from_entity(id)
+    if DoesEntityExist(id) then
+      return NetworkGetNetworkIdFromEntity(id) 
+    else
+      return nil
+    end
+  end
+  
   local function replace_network_id_1(a, ...)
-    a = NetworkGetNetworkIdFromEntity(a)
+    a = network_id_from_entity(a)
     return a, ...
   end
   
   local function replace_network_id_2(a, b, ...)
-    b = NetworkGetNetworkIdFromEntity(b)
+    b = network_id_from_entity(b)
     return a, b, ...
   end
   
   local function replace_network_id_3(a, b, c, ...)
-    c = NetworkGetNetworkIdFromEntity(c)
+    c = network_id_from_entity(c)
     return a, b, c, ...
   end
   
@@ -315,23 +333,23 @@ do
           return f, f_inner
         elseif pos == 1 then
           return function(a, ...)
-            a = NetworkGetEntityFromNetworkId(a)
+            a = entity_from_network_id(a)
             return f(a, ...)
           end, f_inner
         elseif pos == 2 then
           return function(a, b, ...)
-            b = NetworkGetEntityFromNetworkId(b)
+            b = entity_from_network_id(b)
             return f(a, b, ...)
           end, f_inner
         elseif pos == 3 then
           return function(a, b, c, ...)
-            c = NetworkGetEntityFromNetworkId(c)
+            c = entity_from_network_id(c)
             return f(a, b, c, ...)
           end, f_inner
         else
           return function(...)
             local t = t_pack(...)
-            t[pos] = NetworkGetEntityFromNetworkId(t[pos])
+            t[pos] = entity_from_network_id(t[pos])
             return f(t_unpack(t))
           end, f_inner
         end
@@ -358,7 +376,7 @@ do
         else
           return function(...)
             local t = t_pack(f(...))
-            t[pos] = NetworkGetNetworkIdFromEntity(t[pos])
+            t[pos] = network_id_from_entity(t[pos])
             return t_unpack(t)
           end, f_inner
         end
@@ -667,7 +685,6 @@ local IsModelValid = _ENV.IsModelValid
 local RequestModel = _ENV.RequestModel
 local HasModelLoaded = _ENV.HasModelLoaded
 local SetModelAsNoLongerNeeded = _ENV.SetModelAsNoLongerNeeded
-local DoesEntityExist = _ENV.DoesEntityExist
 local RequestCollisionAtCoord = _ENV.RequestCollisionAtCoord
 local HasCollisionLoadedAroundEntity = _ENV.HasCollisionLoadedAroundEntity
 
