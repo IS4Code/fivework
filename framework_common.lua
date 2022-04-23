@@ -5,14 +5,18 @@ local cor_create = cor.create
 local cor_resume = cor.resume
 local cor_yield = cor.yield
 local cor_running = cor.running
+local cor_status = cor.status
 local error = _ENV.error
+local assert = _ENV.assert
 local tostring = _ENV.tostring
 local rawset = _ENV.rawset
 local pcall = _ENV.pcall
+local xpcall = _ENV.xpcall
 local ipairs = _ENV.ipairs
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local t_insert = table.insert
+local d_traceback = debug.traceback
 
 local Cfx_SetTimeout = Citizen.SetTimeout
 local Cfx_CreateThread = Citizen.CreateThread
@@ -28,8 +32,12 @@ local active_threads = setmetatable({}, {
   __mode = 'k'
 })
 
+local function thread_func(func, ...)
+  return xpcall(func, d_traceback, ...)
+end
+
 function FW_Async(func, ...)
-  local thread = cor_create(func)
+  local thread = cor_create(thread_func)
   active_threads[thread] = true
   local on_yield
   local function schedule(scheduler, ...)
@@ -37,17 +45,21 @@ function FW_Async(func, ...)
       return on_yield(cor_resume(thread, ...))
     end, ...)
   end
-  on_yield = function(status, ...)
+  on_yield = function(status, ok_or_scheduler, ...)
     if not status then
-      return print("Error from coroutine:\n", ...)
+      active_threads[thread] = nil
+      return true, print("Unexpected error from coroutine:\n", ok_or_scheduler, ...)
     end
-    if coroutine.status(thread) ~= 'dead' then
-      return false, schedule(...)
+    if cor_status(thread) ~= 'dead' then
+      return false, schedule(ok_or_scheduler, ...)
     end
     active_threads[thread] = nil
+    if not ok_or_scheduler then
+      return true, print("Error from coroutine:\n", ...)
+    end
     return true, ...
   end
-  return on_yield(cor_resume(thread, ...))
+  return on_yield(cor_resume(thread, func, ...))
 end
 local FW_Async = _ENV.FW_Async
 
