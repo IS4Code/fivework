@@ -4,6 +4,7 @@ local cor = coroutine
 local cor_create = cor.create
 local cor_resume = cor.resume
 local cor_yield = cor.yield
+local cor_running = cor.running
 local error = _ENV.error
 local tostring = _ENV.tostring
 local rawset = _ENV.rawset
@@ -23,8 +24,13 @@ end
 
 -- async processing
 
+local active_threads = setmetatable({}, {
+  __mode = 'k'
+})
+
 function FW_Async(func, ...)
   local thread = cor_create(func)
+  active_threads[thread] = true
   local on_yield
   local function schedule(scheduler, ...)
     return scheduler(function(...)
@@ -38,11 +44,32 @@ function FW_Async(func, ...)
     if coroutine.status(thread) ~= 'dead' then
       return false, schedule(...)
     end
+    active_threads[thread] = nil
     return true, ...
   end
   return on_yield(cor_resume(thread, ...))
 end
 local FW_Async = _ENV.FW_Async
+
+function FW_IsAsync()
+  return active_threads[cor_running()] or false
+end
+local FW_IsAsync = _ENV.FW_IsAsync
+
+function FW_Schedule(scheduler, ...)
+  if not FW_IsAsync() then
+    return error("attempted to perform asynchronous operation from non-asynchronous context; use FW_Async")
+  end
+  return cor_yield(scheduler, ...)
+end
+
+local function call_or_wrap_async(func, ...)
+  if FW_IsAsync() then
+    return true, func(...)
+  else
+    return FW_Async(func, ...)
+  end
+end
 
 local function sleep_scheduler(func, ms, ...)
   return Cfx_SetTimeout(ms, function(...)
@@ -158,7 +185,7 @@ local public = _ENV.public
 function FW_TriggerCallback(name, ...)
   local handler = public[name]
   if handler then
-    return handler(...)
+    return call_or_wrap_async(handler, ...)
   end
 end
 local FW_TriggerCallback = _ENV.FW_TriggerCallback
@@ -205,12 +232,8 @@ cmd_ac = setmetatable({}, {
 local cmd, cmd_ac = _ENV.cmd, _ENV.cmd_ac
 
 function FW_TriggerCommand(name, ...)
-  local handler = cmd[name]
+  local handler = cmd[name] or cmd_ac[name]
   if handler then
-    return handler(...)
-  end
-  handler = cmd_ac[name]
-  if handler then
-    return handler(...)
+    return call_or_wrap_async(handler, ...)
   end
 end

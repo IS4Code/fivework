@@ -19,7 +19,6 @@ local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local t_concat = table.concat
 local t_insert = table.insert
-local cor_yield = coroutine.yield
 local str_find = string.find
 local str_sub = string.sub
 local str_gsub = string.gsub
@@ -31,6 +30,7 @@ local str_upper = string.upper
 local j_encode = json.encode
 local cor_wrap = coroutine.wrap
 local cor_yield = coroutine.yield
+local FW_Schedule = _ENV.FW_Schedule
 local Vdist = _ENV.Vdist
 
 local TriggerServerEvent = _ENV.TriggerServerEvent
@@ -718,7 +718,7 @@ do
   
   function LoadModel(hash, ...)
     if not IsModelValid(hash) then return false end
-    return HasModelLoaded(hash) or cor_yield(model_scheduler, hash, ...)
+    return HasModelLoaded(hash) or FW_Schedule(model_scheduler, hash, ...)
   end
 end
 local LoadModel = _ENV.LoadModel
@@ -744,7 +744,7 @@ do
   
   function LoadCollisionAroundEntity(entity, ...)
     if not DoesEntityExist(entity) then return false end
-    return HasCollisionLoadedAroundEntity(entity) or cor_yield(collision_scheduler, entity, ...)
+    return HasCollisionLoadedAroundEntity(entity) or FW_Schedule(collision_scheduler, entity, ...)
   end
 end
 
@@ -766,12 +766,12 @@ do
   
   function FadeInScreen(...)
     if IsScreenFadedIn() then return false end
-    return cor_yield(fade_scheduler, DoScreenFadeIn, IsScreenFadedIn, ...)
+    return FW_Schedule(fade_scheduler, DoScreenFadeIn, IsScreenFadedIn, ...)
   end
   
   function FadeOutScreen(...)
     if IsScreenFadedOut() then return false end
-    return cor_yield(fade_scheduler, DoScreenFadeOut, IsScreenFadedOut, ...)
+    return FW_Schedule(fade_scheduler, DoScreenFadeOut, IsScreenFadedOut, ...)
   end
 end
 local FadeInScreen = _ENV.FadeInScreen
@@ -1254,7 +1254,7 @@ do
     if HasScaleformMovieLoaded(scaleform) then
       return true
     else
-      return cor_yield(scaleform_loaded_scheduler, scaleform)
+      return FW_Schedule(scaleform_loaded_scheduler, scaleform)
     end
   end
   
@@ -1287,7 +1287,7 @@ do
       if IsScaleformMovieMethodReturnValueReady(retval) then
         return rettype(retval)
       else
-        if cor_yield(return_scheduler, retval) then
+        if FW_Schedule(return_scheduler, retval) then
           return rettype(retval)
         end
       end

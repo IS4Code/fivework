@@ -22,6 +22,7 @@ local j_encode = json.encode
 local j_decode = json.decode
 local cor_wrap = coroutine.wrap
 local cor_yield = coroutine.yield
+local FW_Schedule = _ENV.FW_Schedule
 
 local CancelEvent = _ENV.CancelEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent
@@ -326,7 +327,7 @@ do
       return function(...)
         local subscribe = factory(key, ...)
         if subscribe then
-          return error_or_return(cor_yield(subscribe))
+          return error_or_return(FW_Schedule(subscribe))
         end
       end
     end
@@ -338,7 +339,7 @@ do
         local subscribe = factory(key, ...)
         if subscribe then
           return function()
-            return error_or_return(cor_yield(subscribe))
+            return error_or_return(FW_Schedule(subscribe))
           end
         end
       end
