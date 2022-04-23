@@ -1497,3 +1497,131 @@ do
     ToggleControl(true)
   end
 end
+
+-- NativeUI utilities
+
+do
+  local pool
+
+  local function native_ui()
+    return assert(NativeUI, "NativeUI is not loaded")
+  end
+    
+  local event_names = {
+    'IndexChange', -- function(menu, newindex) end
+    'ListChange', -- function(menu, list, newindex) end
+    'SliderChange', -- function(menu, slider, newindex) end
+    'ProgressChange', -- function(menu, progress, newindex) end
+    'CheckboxChange', -- function(menu, item, checked) end
+    'ListSelect', -- function(menu, list, index) end
+    'SliderSelect', -- function(menu, slider, index) end
+    'ProgressSelect', -- function(menu, progress, index) end
+    'ItemSelect', -- function(menu, item, index) end
+    'MenuChanged', -- function(menu, newmenu, forward) end
+    'MenuClosed' -- function(menu) end
+  }
+  
+  function HideMenu()
+    if pool then
+      pool:CloseAllMenus()
+      pool = nil
+    end
+  end
+  local HideMenu = _ENV.HideMenu
+  
+  function ShowMenu(data)
+    local NativeUI = native_ui()
+    pool = NativeUI.CreatePool()
+    local menu = NativeUI.CreateMenu(t_unpack(data))
+    
+    local names = setmetatable({}, {
+      __mode = 'k'
+    })
+    
+    local items = setmetatable({}, {
+      __mode = 'k'
+    })
+    
+    items[menu] = true
+    
+    local init_menu
+    
+    local function add_item(menu, data)
+      local kind = data[1]
+      local item
+      if kind == 'SubMenu' then
+        item = pool:AddSubMenu(menu, t_unpack(data, 2))
+        init_menu(item, data)
+      else
+        item = NativeUI['Create'..kind](t_unpack(data, 2))
+        for field, value in pairs(data) do
+          if type(field) == 'string' then
+            if field == 'Name' then
+              names[item] = unpack_cond(value)
+            else
+              item['Set'..field](item, unpack_cond(value))
+            end
+          end
+        end
+        menu:AddItem(item)
+      end
+      items[item] = true
+    end
+    
+    init_menu = function(menu, data)
+      for field, value in pairs(data) do
+        if type(field) == 'string' then
+          if field == 'Items' then
+            for _, data in ipairs(value) do
+              add_item(menu, data)
+            end
+          elseif field == 'Name' then
+            names[menu] = unpack_cond(value)
+          else
+            menu['Set'..field](menu, unpack_cond(value))
+          end
+        end
+      end
+    end
+    
+    init_menu(menu, data)
+    
+    for _, name in ipairs(event_names) do
+      menu['On'..name] = function(sender, item, index)
+        local value
+        if item and items[item] then
+          if index then
+            local index_func = item.IndexToItem
+            if index_func then
+              value = index_func(item, index)
+            end
+          end
+          item = names[item]
+        end
+        if type(item) == 'table' then
+          item = nil
+        end
+        if type(index) == 'table' then
+          index = nil
+        end
+        if type(value) == 'table' then
+          value = nil
+        end
+        FW_TriggerNetCallback('OnNativeUI'..name, names[sender], item, index, value)
+      end
+    end
+    
+    pool:Add(menu)
+    pool:RefreshIndex()
+    menu:Visible(true)
+  end
+  
+  Cfx_CreateThread(function()
+    while true do
+      if pool then
+        pool:ProcessMenus()
+      end
+      Cfx_Wait(0)
+    end
+  end)
+end
