@@ -212,86 +212,65 @@ do
     return token
   end
   
-  local function single_or_all(results)
-    if #results == 1 then
-      return t_unpack(results[1])
-    else
-      return true, results
-    end
-  end
-  
-  local function newtask(tokens, count)
+  local function newtask()
     local callbacks = {}
-    local results = {}
+    local result
     local function subscribe(callback)
-      if count == 0 then
-        return callback(single_or_all(results))
+      if result then
+        return callback(t_unpack(result))
       else
         t_insert(callbacks, callback)
       end
     end
-    local function complete(player, ...)
-      if tokens[player] then
-        results[player] = t_pack(...)
-        count = count - 1
-        tokens[player] = nil
+    local function complete(...)
+      for _, callback in ipairs(callbacks) do
+        callback(...)
       end
-      if count == 0 then
-        for _, callback in ipairs(callbacks) do
-          callback(single_or_all(results))
-        end
-        results = nil
-      end
+      result = t_pack(...)
     end
     return subscribe, complete
   end
   
-  local function player_task_factory(name, player, ...)
+  local function player_task_factory(name, transform, player, ...)
     local continuations = get_continuations(player)
     local token = newtoken(continuations)
-    local tokens = {
-      [player] = token
-    }
-    local subscribe, complete = newtask(tokens, 1)
+    local subscribe, complete = newtask()
     continuations[token] = function(...)
       continuations[token] = nil
-      return complete(player, ...)
+      return complete(...)
     end
     TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(...), token)
-    return subscribe
+    return transform(subscribe)
   end
   
-  local function group_task_factory(name, group, ...)
-    local tokens = {}
-    local count = 0
+  local function group_task_factory(name, transform, group, ...)
     local args = t_pack(...)
-    local subscribe, complete
+    local results = {}
     for i, v in iterator(group) do
       local player = v or i
-      count = count + 1
       
       local continuations = get_continuations(player)
       local token = newtoken(continuations)
-      tokens[player] = token
+      local subscribe, complete = newtask()
       continuations[token] = function(...)
         continuations[token] = nil
-        return complete(player, ...)
+        return complete(...)
       end
       TriggerClientEvent('fivework:ExecFunction', player, name, args, token)
+      results[player] = transform(subscribe)
     end
-    subscribe, complete = newtask(tokens, count)
-    return subscribe
+    return results
   end
   
-  local function all_task_factory(name, ...)
-    return group_task_factory(name, AllPlayers, ...)
+  local function all_task_factory(name, transform, ...)
+    return group_task_factory(name, transform, AllPlayers, ...)
   end
   
-  local function owner_task_factory(name, entity, ...)
+  local function owner_task_factory(name, transform, entity, ...)
     local player = NetworkGetEntityOwner(entity)
     if not player then return end
     entity = NetworkGetNetworkIdFromEntity(entity)
-    return player_task_factory(name..'NetworkIdIn1', player, entity, ...)
+    return player_task_factory(name..'NetworkIdIn1', transform, player, entity, ...)
   end
   
   RegisterNetEvent('fivework:ExecFunctionResult')
@@ -322,37 +301,35 @@ do
     end
   end)
   
-  local function for_func_wait(factory)
+  local function transform_subscribe(subscribe)
+    return function()
+      return error_or_return(FW_Schedule(subscribe))
+    end
+  end
+  
+  local function for_one_wait(factory)
     return function(key)
       return function(...)
-        local subscribe = factory(key, ...)
-        if subscribe then
-          return error_or_return(FW_Schedule(subscribe))
-        end
+        return factory(key, transform_subscribe, ...)()
       end
     end
   end
   
-  local function for_func_nowait(factory)
+  local function for_one_nowait_or_many(factory)
     return function(key)
       return function(...)
-        local subscribe = factory(key, ...)
-        if subscribe then
-          return function()
-            return error_or_return(FW_Schedule(subscribe))
-          end
-        end
+        return factory(key, transform_subscribe, ...)
       end
     end
   end
   
   local func_patterns = {
-    ['ForPlayer$'] = for_func_wait(player_task_factory),
-    ['ForPlayerNoWait$'] = for_func_nowait(player_task_factory),
-    ['ForAll$'] = for_func_nowait(all_task_factory),
-    ['ForGroup$'] = for_func_nowait(group_task_factory),
-    ['ForOwner$'] = for_func_wait(owner_task_factory),
-    ['ForOwnerNoWait$'] = for_func_nowait(owner_task_factory),
+    ['ForPlayer$'] = for_one_wait(player_task_factory),
+    ['ForPlayerNoWait$'] = for_one_nowait_or_many(player_task_factory),
+    ['ForAll$'] = for_one_nowait_or_many(all_task_factory),
+    ['ForGroup$'] = for_one_nowait_or_many(group_task_factory),
+    ['ForOwner$'] = for_one_wait(owner_task_factory),
+    ['ForOwnerNoWait$'] = for_one_nowait_or_many(owner_task_factory),
     ['FromPlayer$'] = function(key)
       return function(player, ...)
         local state = get_observed_state(player, key, ...)
