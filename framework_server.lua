@@ -2,11 +2,11 @@
 
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
+local t_insert = table.insert
 local str_char = string.char
 local str_find = string.find
 local str_sub = string.sub
 local m_random = math.random
-local cor_yield = coroutine.yield
 local str_format = string.format
 local error = _ENV.error
 local rawset = _ENV.rawset
@@ -168,6 +168,18 @@ end
 
 -- remote execution
 
+local GetPlayers = _ENV.GetPlayers
+
+function AllPlayers()
+  return cor_wrap(function()
+    for _, playerid in ipairs(GetPlayers()) do 
+      cor_yield(tonumber(playerid) or playerid)
+    end
+  end)
+end
+
+local AllPlayers = _ENV.AllPlayers
+
 local NetworkGetEntityOwner = _ENV.NetworkGetEntityOwner
 local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
 
@@ -199,64 +211,86 @@ do
     return token
   end
   
-  local function player_scheduler_factory(name)
-    return function(callback, player, ...)
+  local function single_or_all(results)
+    if #results == 1 then
+      return t_unpack(results[1])
+    else
+      return true, results
+    end
+  end
+  
+  local function newtask(tokens, count)
+    local callbacks = {}
+    local results = {}
+    local function subscribe(callback)
+      if count == 0 then
+        return callback(single_or_all(results))
+      else
+        t_insert(callbacks, callback)
+      end
+    end
+    local function complete(player, ...)
+      if tokens[player] then
+        results[player] = t_pack(...)
+        count = count - 1
+        tokens[player] = nil
+      end
+      if count == 0 then
+        for _, callback in ipairs(callbacks) do
+          callback(single_or_all(results))
+        end
+        results = nil
+      end
+    end
+    return subscribe, complete
+  end
+  
+  local function player_task_factory(name, player, ...)
+    local continuations = get_continuations(player)
+    local token = newtoken(continuations)
+    local tokens = {
+      [player] = token
+    }
+    local subscribe, complete = newtask(tokens, 1)
+    continuations[token] = function(...)
+      continuations[token] = nil
+      return complete(player, ...)
+    end
+    TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(...), token)
+    return subscribe
+  end
+  
+  local function group_task_factory(name, group, ...)
+    local tokens = {}
+    local count = 0
+    local args = t_pack(...)
+    local subscribe, complete
+    for i, v in iterator(group) do
+      local player = v or i
+      count = count + 1
+      
       local continuations = get_continuations(player)
       local token = newtoken(continuations)
+      tokens[player] = token
       continuations[token] = function(...)
         continuations[token] = nil
-        return callback(...)
+        return complete(player, ...)
       end
-      TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(...), token)
+      TriggerClientEvent('fivework:ExecFunction', player, name, args, token)
     end
+    subscribe, complete = newtask(tokens, count)
+    return subscribe
   end
   
-  local function player_scheduler_factory_no_wait(name)
-    return function(callback, player, ...)
-      return callback(true, TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(...), nil))
-    end
+  local function all_task_factory(name, ...)
+    return group_task_factory(name, AllPlayers, ...)
   end
   
-  local function all_scheduler_factory(name)
-    return function(callback, ...)
-      return callback(true, TriggerClientEvent('fivework:ExecFunction', -1, name, t_pack(...), nil))
-    end
-  end
-  
-  local function owner_scheduler_factory(name)
-    name = name..'NetworkIdIn1'
-    return function(callback, entity, ...)
-      local player = NetworkGetEntityOwner(entity)
-      if not player then return callback(false) end
-      entity = NetworkGetNetworkIdFromEntity(entity)
-      local continuations = get_continuations(player)
-      local token = newtoken(continuations)
-      continuations[token] = function(...)
-        continuations[token] = nil
-        return callback(...)
-      end
-      TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(entity, ...), token)
-    end
-  end
-  
-  local function owner_scheduler_factory_no_wait(name)
-    name = name..'NetworkIdIn1'
-    return function(callback, entity, ...)
-      local player = NetworkGetEntityOwner(entity)
-      if not player then return callback(false) end
-      entity = NetworkGetNetworkIdFromEntity(entity)
-      return callback(true, TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(entity, ...), nil))
-    end
-  end
-  
-  local function group_scheduler_factory(name)
-    return function(callback, group, ...)
-      local args = t_pack(...)
-      for i, v in iterator(group) do
-        TriggerClientEvent('fivework:ExecFunction', v, name, args, nil)
-      end
-      return callback(true)
-    end
+  local function owner_task_factory(name, entity, ...)
+    local player = NetworkGetEntityOwner(entity)
+    if not player then return end
+    entity = NetworkGetNetworkIdFromEntity(entity)
+    return player_task_factory(name..'NetworkIdIn1', player, entity, ...)
   end
   
   RegisterNetEvent('fivework:ExecFunctionResult')
@@ -286,24 +320,37 @@ do
     end
   end)
   
-  local function for_func(scheduler_factory)
+  local function for_func_wait(factory)
     return function(key)
-      local scheduler = scheduler_factory(key)
-      if scheduler then
-        return function(...)
-          return error_or_return(cor_yield(scheduler, ...))
+      return function(...)
+        local subscribe = factory(key, ...)
+        if subscribe then
+          return error_or_return(cor_yield(subscribe))
+        end
+      end
+    end
+  end
+  
+  local function for_func_nowait(factory)
+    return function(key)
+      return function(...)
+        local subscribe = factory(key, ...)
+        if subscribe then
+          return function()
+            return error_or_return(cor_yield(subscribe))
+          end
         end
       end
     end
   end
   
   local func_patterns = {
-    ['ForPlayer$'] = for_func(player_scheduler_factory),
-    ['ForPlayerNoWait$'] = for_func(player_scheduler_factory_no_wait),
-    ['ForAll$'] = for_func(all_scheduler_factory),
-    ['ForGroup$'] = for_func(group_scheduler_factory),
-    ['ForOwner$'] = for_func(owner_scheduler_factory),
-    ['ForOwnerNoWait$'] = for_func(owner_scheduler_factory_no_wait),
+    ['ForPlayer$'] = for_func_wait(player_task_factory),
+    ['ForPlayerNoWait$'] = for_func_nowait(player_task_factory),
+    ['ForAll$'] = for_func_nowait(all_task_factory),
+    ['ForGroup$'] = for_func_nowait(group_task_factory),
+    ['ForOwner$'] = for_func_wait(owner_task_factory),
+    ['ForOwnerNoWait$'] = for_func_nowait(owner_task_factory),
     ['FromPlayer$'] = function(key)
       return function(player, ...)
         local state = get_observed_state(player, key, ...)
@@ -576,6 +623,8 @@ do
   end
 end
 
+-- misc
+
 local GetNumPlayerIdentifiers = _ENV.GetNumPlayerIdentifiers
 local GetPlayerIdentifier = _ENV.GetPlayerIdentifier
 
@@ -590,16 +639,6 @@ function PlayerIdentifiers(player)
           cor_yield(str_sub(id, 1, i - 1), str_sub(id, j + 1))
         end
       end
-    end
-  end)
-end
-
-local GetPlayers = _ENV.GetPlayers
-
-function AllPlayers()
-  return cor_wrap(function()
-    for _, playerid in ipairs(GetPlayers()) do 
-      cor_yield(tonumber(playerid) or playerid)
     end
   end)
 end
