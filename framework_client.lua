@@ -670,7 +670,11 @@ do
   end
   
   local function remote_call(name, token, args)
-    return process_call(token, pcall(script_environment[name], t_unpack(args)))
+    local func = script_environment[name]
+    if func == nil then
+      return process_call(token, false, "attempt to call a nil value (field '"..name.."')")
+    end
+    return process_call(token, pcall(func, t_unpack(args)))
   end
   
   RegisterNetEvent('fivework:ExecFunction')

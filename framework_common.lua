@@ -5,6 +5,7 @@ local cor_create = cor.create
 local cor_resume = cor.resume
 local cor_yield = cor.yield
 local error = _ENV.error
+local tostring = _ENV.tostring
 local rawset = _ENV.rawset
 local pcall = _ENV.pcall
 local ipairs = _ENV.ipairs
@@ -32,7 +33,7 @@ function FW_Async(func, ...)
   end
   on_yield = function(status, ...)
     if not status then
-      return error(...)
+      return print("Error from coroutine:\n", ...)
     end
     if coroutine.status(thread) ~= 'dead' then
       return false, schedule(...)
@@ -169,7 +170,7 @@ local registered_commands = {}
 local function after_command(source, rawCommand, status, ...)
   local result = FW_TriggerCallback('OnPlayerPerformedCommand', source, rawCommand, status, ...)
   if not status and not result then
-    return error(...)
+    return error(tostring(...))
   end
 end
 

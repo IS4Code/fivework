@@ -303,9 +303,10 @@ do
       local handler = continuations[token]
       if handler then
         return handler(status, t_unpack(args))
-      elseif not status then
-        error(t_unpack(args))
       end
+    end
+    if not status then
+      return print("Error from unhandled asynchronous call:\n", t_unpack(args))
     end
   end)
   
