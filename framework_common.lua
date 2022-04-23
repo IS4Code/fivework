@@ -209,7 +209,7 @@ local registered_commands = {}
 local function after_command(source, rawCommand, status, ...)
   local result = FW_TriggerCallback('OnPlayerPerformedCommand', source, rawCommand, status, ...)
   if not status and not result then
-    return print("Error from command '':\n", ...)
+    return print("Error from command '"..rawCommand.."':\n", ...)
   end
 end
 
