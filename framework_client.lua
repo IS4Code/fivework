@@ -612,6 +612,7 @@ do
       return rawset(self, key, value)
     end
   })
+  FW_Env = script_environment
   
   do
     local script_cache = {}
