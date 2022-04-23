@@ -48,14 +48,14 @@ function FW_Async(func, ...)
   on_yield = function(status, ok_or_scheduler, ...)
     if not status then
       active_threads[thread] = nil
-      return true, print("Unexpected error from coroutine:\n", ok_or_scheduler, ...)
+      return false, print("Unexpected error from coroutine:\n", ok_or_scheduler, ...)
     end
     if cor_status(thread) ~= 'dead' then
       return false, schedule(ok_or_scheduler, ...)
     end
     active_threads[thread] = nil
     if not ok_or_scheduler then
-      return true, print("Error from coroutine:\n", ...)
+      return false, print("Error from coroutine:\n", ...)
     end
     return true, ...
   end
@@ -176,7 +176,9 @@ end
 local registered_events = {}
 
 local function async_results(done, ...)
-  return ...
+  if done then
+    return ...
+  end
 end
 
 public = setmetatable({}, {
