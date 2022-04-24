@@ -876,6 +876,13 @@ do
   DisplayText = nil
   DisplayHelp = text_formatter(BeginTextCommandDisplayHelp, EndTextCommandDisplayHelp)
   ThefeedPostTicker = text_formatter(BeginTextCommandThefeedPost, EndTextCommandThefeedPostTicker)
+  GetTextLineCount = text_formatter(BeginTextCommandLineCount, EndTextCommandLineCount)
+  GetTextWidth = text_formatter(BeginTextCommandGetWidth, EndTextCommandGetWidth)
+  SetBlipName = text_formatter(BeginTextCommandSetBlipName, EndTextCommandSetBlipName)
+  BusyspinnerOn = text_formatter(BeginTextCommandBusyspinnerOn, EndTextCommandBusyspinnerOn)
+  PrintSubtitle = text_formatter(BeginTextCommandPrint, EndTextCommandPrint)
+  PrintSubtitleClear = text_formatter(BeginTextCommandClearPrint, EndTextCommandClearPrint)
+  ObjectiveText = text_formatter(BeginTextCommandObjective, EndTextCommandObjective)
 end
 
 -- keys
