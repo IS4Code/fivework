@@ -90,7 +90,7 @@ local function sleep_scheduler(func, ms, ...)
 end
 
 function Sleep(...)
-  return cor_yield(sleep_scheduler, ...)
+  return FW_Schedule(sleep_scheduler, ...)
 end
 local Sleep = _ENV.Sleep
 
@@ -107,7 +107,7 @@ local function yield_scheduler(func, args)
 end
 
 function Yield(...)
-  return cor_yield(yield_scheduler, t_pack(...))
+  return FW_Schedule(yield_scheduler, t_pack(...))
 end
 
 local function threaded_scheduler(func, threadFunc, args)
@@ -117,7 +117,7 @@ local function threaded_scheduler(func, threadFunc, args)
 end
 
 function FW_Threaded(func, ...)
-  return cor_yield(threaded_scheduler, func, t_pack(...))
+  return FW_Schedule(threaded_scheduler, func, t_pack(...))
 end
 
 local function on_next(obj, onresult, onerror)
