@@ -83,6 +83,17 @@ local function call_or_wrap_async(func, ...)
   end
 end
 
+do
+  local GetCurrentResourceName = _ENV.GetCurrentResourceName
+  AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() then
+      call_or_wrap_async = function(func, ...)
+        return true, func(...)
+      end
+    end
+  end)
+end
+
 local function sleep_scheduler(func, ms, ...)
   return Cfx_SetTimeout(ms, function(...)
     func(...)
