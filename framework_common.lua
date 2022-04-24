@@ -90,6 +90,14 @@ do
       call_or_wrap_async = function(func, ...)
         return true, func(...)
       end
+      local function disabled()
+        return error('this function cannot be used while the script is stopping')
+      end
+      cor_create = disabled
+      cor_resume = disabled
+      Cfx_SetTimeout = disabled
+      Cfx_CreateThread = disabled
+      Cfx_Await = disabled
     end
   end)
 end
