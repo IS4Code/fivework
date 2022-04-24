@@ -20,4 +20,11 @@ Citizen.CreateThread(function()
 	end
 end)
 
-FW_RegisterObserver('NetworkGetNetworkIdFromEntity', DoesEntityExist)
+FW_RegisterObserver('NetworkGetNetworkIdFromEntity', function(id)
+  return math.type(id) == 'integer' and DoesEntityExist(id)
+end)
+
+function IsEntityWithinRange(entity, x, y, z, range)
+  local pos = GetEntityCoords(entity)
+  return GetDistanceBetweenCoords(pos.x, pos.y, pos.z, x, y, z, false) <= range
+end

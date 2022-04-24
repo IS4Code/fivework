@@ -86,3 +86,21 @@ FW_CreateCallbackHandler('OnGameEvent', function(playerid, type, ...)
     FW_TriggerCallback('OnVehicleDestroyed', playerid, entity, destroyer, weapon)
   end
 end)
+
+FW_RegisterPlainCallback('OnPlayerEnterExitArea')
+
+function RegisterPlayerAreaUpdate(playerid, name, ...)
+  FW_RegisterUpdateForPlayerNoWait(playerid, 'IsEntityInAreaSelfPedSkip', name, ...)
+end
+
+function RegisterPlayerRangeUpdate(playerid, name, ...)
+  FW_RegisterUpdateForPlayerNoWait(playerid, 'IsEntityWithinRangeSelfPedSkip', name, ...)
+end
+
+function CheckPlayerUpdates(playerid, updates)
+  for key, value in pairs(updates) do
+    if key[1] == 'IsEntityInAreaSelfPedSkip' or key[1] == 'IsEntityWithinRangeSelfPedSkip' then
+      FW_TriggerCallback('OnPlayerEnterExitArea', playerid, key[2], table.unpack(value))
+    end
+  end
+end

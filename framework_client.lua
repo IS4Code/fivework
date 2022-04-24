@@ -269,7 +269,7 @@ end
 
 do
   local function entity_from_network_id(id)
-    if NetworkDoesNetworkIdExist(id) then
+    if m_type(id) == 'integer' and NetworkDoesNetworkIdExist(id) then
       return NetworkGetEntityFromNetworkId(id) 
     else
       return nil
@@ -277,7 +277,7 @@ do
   end
   
   local function network_id_from_entity(id)
-    if DoesEntityExist(id) then
+    if m_type(id) == 'integer' and DoesEntityExist(id) then
       return NetworkGetNetworkIdFromEntity(id) 
     else
       return nil
