@@ -496,6 +496,14 @@ do
         end, f_inner
       end
     end,
+    ['Skip$'] = function(name, pos)
+      local f, f_inner = find_func(name)
+      if type(f) == 'function' then
+        return function(a, ...)
+          return f(...)
+        end, f_inner
+      end
+    end,
     ['PropertiesOf(%d+)$'] = function(name, initial)
       initial = tonumber(initial) or 1
       if initial == 0 then
