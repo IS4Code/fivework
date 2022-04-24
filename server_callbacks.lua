@@ -67,3 +67,22 @@ FW_RegisterNetCallback('OnNativeUIProgressSelect')
 FW_RegisterNetCallback('OnNativeUIItemSelect')
 FW_RegisterNetCallback('OnNativeUIMenuChanged')
 FW_RegisterNetCallback('OnNativeUIMenuClosed')
+
+FW_RegisterPlainCallback('OnVehicleDestroyed')
+
+local function id_to_server_id(playerid, id)
+  local network_id = NetworkGetNetworkIdFromEntityFromPlayer(playerid, id)
+  if network_id then
+    return NetworkGetEntityFromNetworkId(network_id)
+  end
+  return -id
+end
+
+FW_CreateCallbackHandler('OnGameEvent', function(playerid, type, ...)
+  if type == 'CEventNetworkVehicleUndrivable' then
+    local entity, destroyer, weapon = ...
+    entity = id_to_server_id(playerid, entity)
+    destroyer = id_to_server_id(playerid, destroyer)
+    FW_TriggerCallback('OnVehicleDestroyed', playerid, entity, destroyer, weapon)
+  end
+end)

@@ -19,3 +19,5 @@ Citizen.CreateThread(function()
 		end
 	end
 end)
+
+FW_RegisterObserver('NetworkGetNetworkIdFromEntity', DoesEntityExist)
