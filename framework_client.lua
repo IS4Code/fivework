@@ -883,6 +883,34 @@ do
   PrintSubtitle = text_formatter(BeginTextCommandPrint, EndTextCommandPrint)
   PrintSubtitleClear = text_formatter(BeginTextCommandClearPrint, EndTextCommandClearPrint)
   ObjectiveText = text_formatter(BeginTextCommandObjective, EndTextCommandObjective)
+  
+  local GetTextLineCount = _ENV.GetTextLineCount
+  local GetTextWidth = _ENV.GetTextWidth
+  local GetRenderedCharacterHeight = _ENV.GetRenderedCharacterHeight
+  local DrawRectEachFrameNamed = script_environment.DrawRectEachFrameNamed
+  local DisplayTextEachFrameNamed = script_environment.DisplayTextEachFrameNamed
+  
+  local function text_box_func(box_name, text_name, duration, text, parameters, x, y)
+    local boxcolor = parameters.BoxColor or {0, 0, 0, 255}
+    parameters.BoxColor = nil
+    local linecoef = 1.0 + (unpack_cond(parameters.LinePadding) or 0.0)
+    parameters.LinePadding = nil
+    local width = GetTextWidth(text, parameters, true)
+    local lines = GetTextLineCount(text, parameters, x, y)
+    local font = unpack_cond(parameters.Font)
+    local unused, scale = unpack_cond(parameters.Scale)
+    local height = GetRenderedCharacterHeight(scale or 1.0, font or 0) * linecoef * lines
+    DrawRectEachFrameNamed(box_name, duration, x + width/2, y + height/2, width, height, t_unpack(boxcolor))
+    DisplayTextEachFrameNamed(text_name, duration, text, parameters, x, y)
+  end
+  
+  function DisplayTextBox(...)
+    return text_box_func('fw:box', 'fw:text', ...)
+  end
+  
+  function DisplayTextBoxNamed(name, ...)
+    return text_box_func('fw:box_'..name, 'fw:text_'..name, ...)
+  end
 end
 
 -- keys

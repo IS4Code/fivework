@@ -7,5 +7,10 @@ server_script 'framework_server.lua'
 client_script 'client_callbacks.lua'
 server_script 'server_callbacks.lua'
 
+client_script 'NativeUI.lua'
+
+server_script 'server_wtls.lua'
+client_script 'client_wtls.lua'
+
 game 'common'
 fx_version 'adamant'
