@@ -1415,7 +1415,9 @@ do
     local player = PlayerId()
     local ped = PlayerPedId()
     
-    SetPlayerControl(player, controllable, flags or 0)
+    if flags then
+      SetPlayerControl(player, controllable, flags)
+    end
   
     FreezeEntityPosition(ped, not controllable)
     SetPlayerInvincible(player, not controllable)
@@ -1445,7 +1447,7 @@ do
       FadeOutScreen(fade)
     end
     
-    ToggleControl(false)
+    ToggleControl(false, 0)
     local ped = PlayerPedId()
     SetEntityVisible(ped, false, false)
     
@@ -1494,7 +1496,7 @@ do
       FadeInScreen(fade)
     end
     
-    ToggleControl(true)
+    ToggleControl(true, 0)
   end
 end
 
