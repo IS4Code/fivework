@@ -1574,7 +1574,7 @@ do
   end
   local HideMenu = _ENV.HideMenu
   
-  function ShowMenu(data)
+  function ShowMenu(data, poolOptions)
     local NativeUI = native_ui()
     pool = NativeUI.CreatePool()
     local menu = NativeUI.CreateMenu(t_unpack(data))
@@ -1657,6 +1657,17 @@ do
     end
     
     pool:Add(menu)
+    
+    if poolOptions then
+      for field, data in pairs(poolOptions) do
+        local key = get_property_key(field)
+        if key then
+          local func = pool[key]
+          func(pool, unpack_cond(data));
+        end
+      end
+    end
+    
     pool:RefreshIndex()
     menu:Visible(true)
   end
