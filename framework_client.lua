@@ -519,6 +519,11 @@ do
         end, f_inner
       end
     end,
+    ['ForObject$'] = function(name)
+      return function(object, ...)
+        return object[name](object, ...)
+      end
+    end,
     ['Skip$'] = function(name, pos)
       local f, f_inner = find_func(name)
       if type(f) == 'function' then
