@@ -324,6 +324,13 @@ do
     return chunk
   end
   
+  local value_names = {}
+  
+  local function store_to_name(name, ...)
+    value_names[name] = ...
+    return ...
+  end
+  
   local func_patterns = {
     ['NetworkIdIn(%d+)$'] = function(name, pos)
       local f, f_inner = find_func(name)
@@ -493,6 +500,22 @@ do
       if type(f) == 'function' then
         return function(...)
           return f(PlayerPedId(), ...)
+        end, f_inner
+      end
+    end,
+    ['WithName$'] = function(name)
+      local f, f_inner = find_func(name)
+      if type(f) == 'function' then
+        return function(varName, ...)
+          return f(value_names[varName], ...)
+        end, f_inner
+      end
+    end,
+    ['ToName$'] = function(name)
+      local f, f_inner = find_func(name)
+      if type(f) == 'function' then
+        return function(varName, ...)
+          return store_to_name(varName, f(...))
         end, f_inner
       end
     end,
