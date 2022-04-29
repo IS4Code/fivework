@@ -87,7 +87,6 @@ FW_CreateCallbackHandler('OnGameEvent', function(playerid, type, ...)
     FW_TriggerCallback('OnVehicleDestroyed', playerid, entity, destroyer, weapon)
   elseif type == 'CEventNetworkPlayerCollectedPickup' then
     local pickup, player, hash, amount = ...
-    pickup = id_to_server_id(playerid, pickup)
     FW_TriggerCallback('OnPlayerPickup', playerid, pickup, player, hash, amount)
   end
 end)
