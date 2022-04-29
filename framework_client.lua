@@ -1388,6 +1388,18 @@ do
     end
   })
   
+  for _, name in ipairs{'', '_3d', '_3dSolid', 'Fullscreen', 'FullscreenMasked'} do
+    local drawFunc = script_environment['DrawScaleformMovie'..name..'EachFrameNamed'];
+    scaleform_movie['Draw'..name] = function(self, duration, ...)
+      local id = 'fw:sf_'..tostring(self.__data)
+      drawFunc(id, duration, self, ...)
+    end
+    scaleform_movie['Draw'..name..'Named'] = function(self, name, duration, ...)
+      local id = 'fw:sf_'..tostring(self.__data)..'_'..name
+      drawFunc(id, duration, self, ...)
+    end
+  end
+  
   local scaleform_mt = {
     __index = scaleform_movie
   }
@@ -1403,7 +1415,7 @@ do
     end
   }
   
-  function ScaleformMovie(id, gc, properties)
+  function ScaleformMovie(id, properties, gc)
     if type(id) == 'string' then
       id = RequestScaleformMovie(id)
       if gc == nil then
