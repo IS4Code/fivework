@@ -324,12 +324,12 @@ do
   end
   
   local func_patterns = {
-    ['ForPlayer$'] = for_one_wait(player_task_factory),
-    ['ForPlayerNoWait$'] = for_one_nowait_or_many(player_task_factory),
+    ['ForPlayerWait$'] = for_one_wait(player_task_factory),
+    ['ForPlayer$'] = for_one_nowait_or_many(player_task_factory),
     ['ForAll$'] = for_one_nowait_or_many(all_task_factory),
     ['ForGroup$'] = for_one_nowait_or_many(group_task_factory),
-    ['ForOwner$'] = for_one_wait(owner_task_factory),
-    ['ForOwnerNoWait$'] = for_one_nowait_or_many(owner_task_factory),
+    ['ForOwnerWait$'] = for_one_wait(owner_task_factory),
+    ['ForOwner$'] = for_one_nowait_or_many(owner_task_factory),
     ['FromPlayer$'] = function(key)
       return function(player, ...)
         local state = get_observed_state(player, key, ...)
