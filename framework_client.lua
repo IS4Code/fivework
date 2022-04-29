@@ -1403,7 +1403,7 @@ do
     end
   }
   
-  function ScaleformMovie(id, gc)
+  function ScaleformMovie(id, gc, properties)
     if type(id) == 'string' then
       id = RequestScaleformMovie(id)
       if gc == nil then
@@ -1411,7 +1411,16 @@ do
       end
     end
     if id and id ~= 0 then
-      return setmetatable({__data = id}, gc and scaleform_mt_gc or scaleform_mt)
+      local result = setmetatable({__data = id}, gc and scaleform_mt_gc or scaleform_mt)
+      if properties then
+        for field, value in pairs(properties) do
+          local key = get_property_key(field)
+          if key then
+            result[key](result, unpack_cond(value))
+          end
+        end
+      end
+      return result
     end
   end
   
