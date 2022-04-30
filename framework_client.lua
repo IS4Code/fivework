@@ -728,6 +728,19 @@ local HasModelLoaded = _ENV.HasModelLoaded
 local SetModelAsNoLongerNeeded = _ENV.SetModelAsNoLongerNeeded
 local RequestCollisionAtCoord = _ENV.RequestCollisionAtCoord
 local HasCollisionLoadedAroundEntity = _ENV.HasCollisionLoadedAroundEntity
+local DoesAnimDictExist = _ENV.DoesAnimDictExist
+local RequestAnimDict = _ENV.RequestAnimDict
+local HasAnimDictLoaded = _ENV.HasAnimDictLoaded
+local RemoveAnimDict = _ENV.RemoveAnimDict
+  
+local function is_timeout(timeout, time)
+  if timeout and timeout >= 0 then
+    local diff = GetTimeDifference(GetGameTimer(), time)
+    if diff > timeout then
+      return true
+    end
+  end
+end
 
 do
   local function model_finalizer(hash, ...)
@@ -742,11 +755,8 @@ do
       while not HasModelLoaded(hash) do
         RequestModel(hash)
         Cfx_Wait(0)
-        if timeout and timeout >= 0 then
-          local diff = GetTimeDifference(GetGameTimer(), time)
-          if diff > timeout then
-            return callback(false)
-          end
+        if is_timeout(timeout, time) then
+          return callback(false)
         end
       end
       return model_finalizer(hash, callback(true))
@@ -761,6 +771,34 @@ end
 local LoadModel = _ENV.LoadModel
 
 do
+  local function anim_dict_finalizer(name, ...)
+    RemoveAnimDict(name)
+    return ...
+  end
+
+  local function anim_dict_scheduler(callback, name, timeout)
+    return Cfx_CreateThread(function()
+      RequestAnimDict(name)
+      local time = GetGameTimer()
+      while not HasAnimDictLoaded(hash) do
+        RequestAnimDict(name)
+        Cfx_Wait(0)
+        if is_timeout(timeout, time) then
+          return callback(false)
+        end
+      end
+      return anim_dict_finalizer(name, callback(true))
+    end)
+  end
+  
+  function LoadAnimDict(name, ...)
+    if not DoesAnimDictExist(name) then return false end
+    return HasModelLoaded(name) or FW_Schedule(anim_dict_scheduler, name, ...)
+  end
+end
+local LoadAnimDict = _ENV.LoadAnimDict
+
+do
   local function collision_scheduler(callback, entity, x, y, z, timeout)
     return Cfx_CreateThread(function()
       RequestCollisionAtCoord(x, y, z)
@@ -768,11 +806,8 @@ do
       while not HasCollisionLoadedAroundEntity(entity) do
         RequestCollisionAtCoord(x, y, z)
         Cfx_Wait(0)
-        if timeout and timeout >= 0 then
-          local diff = GetTimeDifference(GetGameTimer(), time)
-          if diff > timeout then
-            return callback(false)
-          end
+        if is_timeout(timeout, time) then
+          return callback(false)
         end
       end
       return callback(true)
