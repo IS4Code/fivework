@@ -20,8 +20,16 @@ Citizen.CreateThread(function()
 	end
 end)
 
+local m_type = math.type
+
+local DoesEntityExist = _ENV.DoesEntityExist
 FW_RegisterObserver('NetworkGetNetworkIdFromEntity', function(id)
-  return math.type(id) == 'integer' and DoesEntityExist(id)
+  return m_type(id) == 'integer' and DoesEntityExist(id)
+end)
+
+local NetworkIsPlayerActive = _ENV.NetworkIsPlayerActive
+FW_RegisterObserver('GetPlayerServerId', function(id)
+  return m_type(id) == 'integer' and NetworkIsPlayerActive(id)
 end)
 
 function IsEntityWithinRange(entity, x, y, z, range)
