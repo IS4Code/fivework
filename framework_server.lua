@@ -588,7 +588,9 @@ do
   
   function LoadResourceData(name, file)
     local data = LoadResourceFile(name, file)
-    return t_unpack(transform_table_back(j_decode(data)))
+    if data then
+      return t_unpack(transform_table_back(j_decode(data)))
+    end
   end
   
   local GetCurrentResourceName = _ENV.GetCurrentResourceName
