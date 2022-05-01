@@ -780,7 +780,7 @@ do
     return Cfx_CreateThread(function()
       RequestAnimDict(name)
       local time = GetGameTimer()
-      while not HasAnimDictLoaded(hash) do
+      while not HasAnimDictLoaded(name) do
         RequestAnimDict(name)
         Cfx_Wait(0)
         if is_timeout(timeout, time) then
@@ -793,7 +793,7 @@ do
   
   function LoadAnimDict(name, ...)
     if not DoesAnimDictExist(name) then return false end
-    return HasModelLoaded(name) or FW_Schedule(anim_dict_scheduler, name, ...)
+    return HasAnimDictLoaded(name) or FW_Schedule(anim_dict_scheduler, name, ...)
   end
 end
 local LoadAnimDict = _ENV.LoadAnimDict
