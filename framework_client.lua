@@ -1688,7 +1688,7 @@ do
             if field == 'Name' then
               names[item] = unpack_cond(value)
             else
-              item['Set'..field](item, unpack_cond(value))
+              (item['Set'..field] or item[field])(item, unpack_cond(value))
             end
           end
         end
@@ -1707,7 +1707,7 @@ do
           elseif field == 'Name' then
             names[menu] = unpack_cond(value)
           else
-            menu['Set'..field](menu, unpack_cond(value))
+            (menu['Set'..field] or menu[field])(menu, unpack_cond(value))
           end
         end
       end
