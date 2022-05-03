@@ -1624,6 +1624,8 @@ do
     end
     
     ToggleControl(true, 0)
+    
+    TriggerEvent('playerSpawned', {})
   end
 end
 
