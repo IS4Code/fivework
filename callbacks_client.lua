@@ -10,14 +10,29 @@ AddEventHandler('onResourceStart', function(resource)
 end)
 
 Citizen.CreateThread(function()
-	while true do
-		Wait(0)
-
-		if NetworkIsSessionStarted() then
-			TriggerServerEvent('fivework:PlayerActivated')
-			return
-		end
-	end
+  while true do
+    Wait(0)
+    
+    local sessionStarted, playerActive
+    
+    if not sessionStarted then
+      if NetworkIsSessionStarted() then
+        FW_TriggerNetCallback('OnPlayerConnect')
+        sessionStarted = true
+      end
+    end
+    
+    if not playerActive then
+      if NetworkIsPlayerActive(PlayerId()) then
+        FW_TriggerNetCallback('OnPlayerActivate')
+        playerActive = true
+      end
+    end
+    
+    if sessionStarted and playerActive then
+      return
+    end
+  end
 end)
 
 local m_type = math.type
