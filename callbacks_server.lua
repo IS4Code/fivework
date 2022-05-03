@@ -92,19 +92,22 @@ FW_CreateCallbackHandler('OnGameEvent', function(playerid, type, ...)
 end)
 
 FW_RegisterPlainCallback('OnPlayerEnterExitArea')
+FW_RegisterPlainCallback('OnPlayerEnterExitSphere')
 
-function RegisterPlayerAreaUpdate(playerid, name, ...)
+function RegisterPlayerAreaCheck(playerid, name, ...)
   FW_RegisterUpdateForPlayer(playerid, 'IsEntityInAreaSelfPedSkip', name, ...)
 end
 
-function RegisterPlayerRangeUpdate(playerid, name, ...)
+function RegisterPlayerSphereCheck(playerid, name, ...)
   FW_RegisterUpdateForPlayer(playerid, 'IsEntityWithinRangeSelfPedSkip', name, ...)
 end
 
 function CheckPlayerUpdates(playerid, updates)
   for key, value in pairs(updates) do
-    if key[1] == 'IsEntityInAreaSelfPedSkip' or key[1] == 'IsEntityWithinRangeSelfPedSkip' then
+    if key[1] == 'IsEntityInAreaSelfPedSkip' then
       FW_TriggerCallback('OnPlayerEnterExitArea', playerid, key[2], table.unpack(value))
+    elseif key[1] == 'IsEntityWithinRangeSelfPedSkip' then
+      FW_TriggerCallback('OnPlayerEnterExitSphere', playerid, key[2], table.unpack(value))
     end
   end
 end
