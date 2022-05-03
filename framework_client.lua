@@ -1086,10 +1086,15 @@ do
   end
   launch_thread(nil)
   
+  function FW_RegisterUpdateDefault(fname, value, ...)
+    registered_updates[j_encode{fname, ...}] = t_pack(nil, value, fname, ...)
+  end
+  local FW_RegisterUpdateDefault = _ENV.FW_RegisterUpdateDefault
+  
   function FW_RegisterUpdate(fname, ...)
     local func = script_environment[fname]
     local value = func and func(...)
-    registered_updates[j_encode{fname, ...}] = t_pack(nil, value, fname, ...)
+    return FW_RegisterUpdateDefault(fname, value, ...)
   end
   
   function FW_UnregisterUpdate(...)
