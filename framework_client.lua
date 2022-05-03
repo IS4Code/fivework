@@ -1569,9 +1569,12 @@ do
   local SetPedConfigFlag = _ENV.SetPedConfigFlag
   local ShutdownLoadingScreen = _ENV.ShutdownLoadingScreen
   
-  function SpawnIn(model, modelProperties, x, y, z, heading, entityProperties, fade)
-    if fade then
-      FadeOutScreen(fade)
+  function SpawnIn(model, modelProperties, x, y, z, heading, entityProperties, fadeOut, fadeIn)
+    if fadeIn == nil then
+      fadeIn = fadeOut
+    end
+    if fadeOut then
+      FadeOutScreen(fadeOut)
     end
     
     ToggleControl(false, 0)
@@ -1619,8 +1622,8 @@ do
     SetEntityVisible(ped, true, false)
     ShutdownLoadingScreen()
     
-    if fade then
-      FadeInScreen(fade)
+    if fadeIn then
+      FadeInScreen(fadeIn)
     end
     
     ToggleControl(true, 0)
