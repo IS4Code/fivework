@@ -1775,3 +1775,16 @@ do
     end
   end)
 end
+
+-- misc
+
+local GetPlayerServerId = _ENV.GetPlayerServerId
+
+function AllPlayers()
+  return cor_wrap(function()
+    for _, player in ipairs(GetActivePlayers()) do
+      local playerid = GetPlayerServerId(player)
+      cor_yield(tonumber(playerid) or playerid)
+    end
+  end)
+end
