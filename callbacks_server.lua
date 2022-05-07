@@ -96,11 +96,19 @@ FW_RegisterPlainCallback('OnPlayerEnterExitArea')
 FW_RegisterPlainCallback('OnPlayerEnterExitSphere')
 
 function RegisterPlayerAreaCheck(playerid, name, ...)
-  FW_RegisterUpdateDefaultForPlayer(playerid, 'IsEntityInAreaSelfPedSkip', false, name, ...)
+  FW_RegisterUpdateKeyDefaultForPlayer(playerid, 'IsEntityInAreaSelfPedSkip', 1, false, name, ...)
 end
 
 function RegisterPlayerSphereCheck(playerid, name, ...)
-  FW_RegisterUpdateDefaultForPlayer(playerid, 'IsEntityWithinRangeSelfPedSkip', false, name, ...)
+  FW_RegisterUpdateKeyDefaultForPlayer(playerid, 'IsEntityWithinRangeSelfPedSkip', 1, false, name, ...)
+end
+
+function UnregisterPlayerAreaCheck(playerid, name)
+  FW_UnregisterUpdateForPlayer(playerid, 'IsEntityInAreaSelfPedSkip', name)
+end
+
+function UnregisterPlayerSphereCheck(playerid, name)
+  FW_UnregisterUpdateForPlayer(playerid, 'IsEntityWithinRangeSelfPedSkip', name)
 end
 
 function CheckPlayerUpdates(playerid, updates)

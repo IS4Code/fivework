@@ -1086,15 +1086,31 @@ do
   end
   launch_thread(nil)
   
+  function FW_RegisterUpdateKeyDefault(fname, key_length, value, ...)
+    local key = {fname, ...}
+    if key_length then
+      for i = key_length + 2, #key do
+        key[i] = nil
+      end
+    end
+    registered_updates[j_encode(key)] = t_pack(nil, value, fname, ...)
+  end
+  local FW_RegisterUpdateKeyDefault = _ENV.FW_RegisterUpdateKeyDefault
+  
   function FW_RegisterUpdateDefault(fname, value, ...)
-    registered_updates[j_encode{fname, ...}] = t_pack(nil, value, fname, ...)
+    return FW_RegisterUpdateKeyDefault(fname, nil, value, ...)
   end
   local FW_RegisterUpdateDefault = _ENV.FW_RegisterUpdateDefault
   
-  function FW_RegisterUpdate(fname, ...)
+  function FW_RegisterUpdateKey(fname, key_length, ...)
     local func = script_environment[fname]
     local value = func and func(...)
-    return FW_RegisterUpdateDefault(fname, value, ...)
+    return FW_RegisterUpdateKeyDefault(fname, key_length, value, ...)
+  end
+  local FW_RegisterUpdateKey = _ENV.FW_RegisterUpdateKey
+  
+  function FW_RegisterUpdate(fname, ...)
+    return FW_RegisterUpdateKey(fname, nil, ...)
   end
   
   function FW_UnregisterUpdate(...)
