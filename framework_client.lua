@@ -849,6 +849,29 @@ end
 local FadeInScreen = _ENV.FadeInScreen
 local FadeOutScreen = _ENV.FadeOutScreen
 
+do
+  local SlideObject = _ENV.SlideObject
+
+  local function slide_scheduler(callback, object, toX, toY, toZ, speedX, speedY, speedZ, collision, timeout)
+    return Cfx_CreateThread(function()
+      local time = GetGameTimer()
+      while not SlideObject(object, toX, toY, toZ, speedX, speedY, speedZ, collision) do
+        Cfx_Wait(0)
+        if is_timeout(timeout, time) then
+          return callback(false)
+        end
+      end
+      return callback(true)
+    end)
+  end
+  
+  function MoveObject(...)
+    if not SlideObject(...) then return false end
+    return FW_Schedule(slide_scheduler, ...)
+  end
+end
+local MoveObject = _ENV.MoveObject
+
 -- text drawing
 
 local AddTextEntry = _ENV.AddTextEntry
