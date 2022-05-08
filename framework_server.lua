@@ -12,6 +12,8 @@ local error = _ENV.error
 local rawset = _ENV.rawset
 local rawget = _ENV.rawget
 local type = _ENV.type
+local xpcall = _ENV.xpcall
+local d_traceback = debug.traceback
 local m_type = math.type
 local m_huge = math.huge
 local ipairs = _ENV.ipairs
@@ -273,20 +275,27 @@ do
     return player_task_factory(name..'NetworkIdIn1', transform, player, entity, ...)
   end
   
-  RegisterNetEvent('fivework:ExecFunctionResult')
-  AddEventHandler('fivework:ExecFunctionResult', function(status, args, token)
+  RegisterNetEvent('fivework:ExecFunctionResults')
+  AddEventHandler('fivework:ExecFunctionResults', function(data)
     local source = _ENV.source
-    retrieve_observed_state(source, args)
-    
-    local continuations = player_continuations[source]
-    if continuations then
-      local handler = continuations[token]
-      if handler then
-        return handler(status, t_unpack(args))
+    for _, record in ipairs(data) do
+      local status, args, token = t_unpack(record)
+      retrieve_observed_state(source, args)
+      
+      local continuations = player_continuations[source]
+      if continuations then
+        local handler = continuations[token]
+        if handler then
+          local ok, msg = xpcall(handler, d_traceback, status, t_unpack(args))
+          if not ok then
+            print("Error in asynchronous continuation:\n", msg)
+          end
+          status = true
+        end
       end
-    end
-    if not status then
-      return print("Error from unhandled asynchronous call:\n", t_unpack(args))
+      if not status then
+        print("Error from unhandled asynchronous call:\n", t_unpack(args))
+      end
     end
   end)
   

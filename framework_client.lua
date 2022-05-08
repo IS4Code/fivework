@@ -700,11 +700,23 @@ do
     end
   end
   
+  local results_queue = {}
+  
   local function process_call(token, status, ...)
     if token or not status then
-      return TriggerServerEvent('fivework:ExecFunctionResult', status, observe_state(t_pack(...)), token)
+      return t_insert(results_queue, {status, observe_state(t_pack(...)), token})
     end
   end
+  
+  Cfx_CreateThread(function()
+    while true do
+      Cfx_Wait(0)
+      if #results_queue > 0 then
+        TriggerServerEvent('fivework:ExecFunctionResults', results_queue)
+        results_queue = {}
+      end
+    end
+  end)
   
   local function remote_call(name, token, args)
     local func = script_environment[name]
