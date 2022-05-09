@@ -51,3 +51,8 @@ function IsEntityWithinRange(entity, x, y, z, range)
   local pos = GetEntityCoords(entity)
   return GetDistanceBetweenCoords(pos.x, pos.y, pos.z, x, y, z, false) <= range
 end
+
+function IsEntityWithinArea(entity, x1, y1, z1, x2, y2, z2)
+  local pos = GetEntityCoords(entity)
+  return pos.x >= x1 and pos.x <= x2 and pos.y >= y1 and pos.y <= y2 and pos.z >= z1 and pos.z <= z2
+end
