@@ -71,6 +71,7 @@ FW_RegisterNetCallback('OnNativeUIMenuClosed')
 
 FW_RegisterPlainCallback('OnVehicleDestroyed')
 FW_RegisterPlainCallback('OnPlayerPickup')
+FW_RegisterPlainCallback('OnEntityDamaged')
 
 local function id_to_server_id(playerid, id)
   local network_id = NetworkGetNetworkIdFromEntityFromPlayer(playerid, id)
@@ -89,6 +90,11 @@ FW_CreateCallbackHandler('OnGameEvent', function(playerid, type, ...)
   elseif type == 'CEventNetworkPlayerCollectedPickup' then
     local pickup, player, hash, amount = ...
     FW_TriggerCallback('OnPlayerPickup', playerid, pickup, player, hash, amount)
+  elseif type == 'CEventNetworkEntityDamage' then
+    local victim, attacker, _, fatal, weapon = ...
+    victim = id_to_server_id(playerid, victim)
+    attacker = id_to_server_id(playerid, attacker)
+    FW_TriggerCallback('OnEntityDamaged', playerid, victim, attacker, weapon, fatal)
   end
 end)
 
@@ -120,3 +126,5 @@ function CheckPlayerUpdates(playerid, updates)
     end
   end
 end
+
+FW_RegisterCallback('OnWeaponDamage', 'weaponDamageEvent')
