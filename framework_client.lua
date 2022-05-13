@@ -1718,6 +1718,10 @@ do
     end
   end
   local HideMenu = _ENV.HideMenu
+    
+  local by_name = setmetatable({}, {
+    __mode = 'v'
+  })
   
   function ShowMenu(data, poolOptions)
     local NativeUI = native_ui()
@@ -1745,11 +1749,14 @@ do
       else
         item = NativeUI['Create'..kind](t_unpack(data, 2))
         for field, value in pairs(data) do
-          if type(field) == 'string' then
-            if field == 'Name' then
-              names[item] = unpack_cond(value)
+          local key = get_property_key(field)
+          if key then
+            if key == 'Name' then
+              local name = unpack_cond(value)
+              names[item] = name
+              by_name[name] = item
             else
-              (item['Set'..field] or item[field])(item, unpack_cond(value))
+              (item['Set'..key] or item[key])(item, unpack_cond(value))
             end
           end
         end
@@ -1760,15 +1767,18 @@ do
     
     init_menu = function(menu, data)
       for field, value in pairs(data) do
-        if type(field) == 'string' then
-          if field == 'Items' then
+        local key = get_property_key(field)
+        if key then
+          if key == 'Items' then
             for _, data in ipairs(value) do
               add_item(menu, data)
             end
-          elseif field == 'Name' then
-            names[menu] = unpack_cond(value)
+          elseif key == 'Name' then
+            local name = unpack_cond(value)
+            names[menu] = name
+            by_name[name] = menu
           else
-            (menu['Set'..field] or menu[field])(menu, unpack_cond(value))
+            (menu['Set'..key] or menu[key])(menu, unpack_cond(value))
           end
         end
       end
@@ -1815,6 +1825,20 @@ do
     
     pool:RefreshIndex()
     menu:Visible(true)
+  end
+  
+  function SetMenuItemProperties(name, data)
+    local item = by_name[name]
+    if item then
+      for field, value in pairs(data) do
+        local key = get_property_key(field)
+        if key then
+          (menu['Set'..key] or menu[key])(key, unpack_cond(value))
+        end
+      end
+      return true
+    end
+    return false
   end
   
   Cfx_CreateThread(function()
