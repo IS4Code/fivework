@@ -85,6 +85,21 @@ local function get_property_key(field)
   end
 end
 
+local function assert_call(f, name, ...)
+  if not f then
+    return error("attempt to call a nil value (field '"..name.."')")
+  end
+  return f(...)
+end
+
+local function assert_call_t(t, name, ...)
+  return assert_call(t[name], name, ...)
+end
+
+local function assert_call_env(name, ...)
+  return assert_call_t(_ENV, name, ...)
+end
+
 -- remote execution
 
 local script_environment
@@ -521,7 +536,7 @@ do
     end,
     ['ForObject$'] = function(name)
       return function(object, ...)
-        return object[name](object, ...)
+        return assert_call_t(object, name, object, ...)
       end
     end,
     ['Skip$'] = function(name, pos)
@@ -543,7 +558,7 @@ do
               for field, value in pairs(data) do
                 local key = get_property_key(field)
                 if key then
-                  _ENV[name..key](unpack_cond(value))
+                  assert_call_env(name..key, unpack_cond(value))
                 end
               end
             end
@@ -558,7 +573,7 @@ do
               for field, value in pairs(data) do
                 local key = get_property_key(field)
                 if key then
-                  _ENV[name..key](target, unpack_cond(value))
+                  assert_call_env(name..key, target, unpack_cond(value))
                 end
               end
             end
@@ -573,7 +588,7 @@ do
               for field, value in pairs(data) do
                 local key = get_property_key(field)
                 if key then
-                  _ENV[name..key](target1, target2, unpack_cond(value))
+                  assert_call_env(name..key, target1, target2, unpack_cond(value))
                 end
               end
             end
@@ -588,7 +603,7 @@ do
               for field, value in pairs(data) do
                 local key = get_property_key(field)
                 if key then
-                  _ENV[name..field](target1, target2, target3, unpack_cond(value))
+                  assert_call_env(name..key, target1, target2, target3, unpack_cond(value))
                 end
               end
             end
@@ -616,7 +631,7 @@ do
                     args2[initial + 1] = value
                     args2.n = initial + 1
                   end
-                  _ENV[name..key](t_unpack(args2))
+                  assert_call_env(name..key, t_unpack(args2))
                 end
               end
             end
@@ -930,7 +945,7 @@ function SetTextComponentsList(list)
     if primary == nil then
       local ctype, cvalue = next(component)
       if ctype then
-        _ENV['AddTextComponentSubstring'..ctype](unpack_cond(cvalue))
+        assert_call_env('AddTextComponentSubstring'..ctype, unpack_cond(cvalue))
       end
     elseif type(primary) == 'string' then
       AddTextComponentSubstringPlayerName(t_unpack(component))
@@ -958,7 +973,7 @@ do
     for field, value in pairs(data) do
       local key = get_property_key(field)
       if key then
-        _ENV['SetText'..key](unpack_cond(value))
+        assert_call_env('SetText'..key, unpack_cond(value))
       end
     end
     SetTextComponentsList(data)
@@ -1428,7 +1443,7 @@ do
       if type(arg) == 'table' then
         local ctype, cvalue = next(arg)
         if ctype then
-          _ENV['ScaleformMovieMethodAddParam'..ctype](unpack_cond(cvalue))
+          assert_call_env('ScaleformMovieMethodAddParam'..ctype, unpack_cond(cvalue))
         end
       elseif type(arg) == 'string' then
         ScaleformMovieMethodAddParamTextureNameString(arg)
@@ -1519,7 +1534,7 @@ do
         for field, value in pairs(properties) do
           local key = get_property_key(field)
           if key then
-            result[key](result, unpack_cond(value))
+            assert_call_t(result, key, result, unpack_cond(value))
           end
         end
       end
@@ -1645,7 +1660,7 @@ do
         for field, value in pairs(modelProperties) do
           local key = get_property_key(field)
           if key then
-            _ENV['SetPed'..key](ped, unpack_cond(value))
+            assert_call_env('SetPed'..key, ped, unpack_cond(value))
           end
         end
       end
@@ -1669,7 +1684,7 @@ do
       for field, value in pairs(entityProperties) do
         local key = get_property_key(field)
         if key then
-          _ENV['SetPed'..key](ped, unpack_cond(value))
+          assert_call_env('SetPed'..key, ped, unpack_cond(value))
         end
       end
     end
@@ -1747,7 +1762,7 @@ do
         item = pool:AddSubMenu(menu, t_unpack(data, 2))
         init_menu(item, data)
       else
-        item = NativeUI['Create'..kind](t_unpack(data, 2))
+        item = assert_call_t(NativeUI, 'Create'..kind, t_unpack(data, 2))
         for field, value in pairs(data) do
           local key = get_property_key(field)
           if key then
@@ -1756,7 +1771,7 @@ do
               names[item] = name
               by_name[name] = item
             else
-              (item['Set'..key] or item[key])(item, unpack_cond(value))
+              assert_call(item['Set'..key] or item[key], key, item, unpack_cond(value))
             end
           end
         end
@@ -1778,7 +1793,7 @@ do
             names[menu] = name
             by_name[name] = menu
           else
-            (menu['Set'..key] or menu[key])(menu, unpack_cond(value))
+            assert_call(menu['Set'..key] or menu[key], key, menu, unpack_cond(value))
           end
         end
       end
@@ -1833,7 +1848,7 @@ do
       for field, value in pairs(data) do
         local key = get_property_key(field)
         if key then
-          (menu['Set'..key] or menu[key])(key, unpack_cond(value))
+          assert_call(menu['Set'..key] or menu[key], key, item, unpack_cond(value))
         end
       end
       return true
