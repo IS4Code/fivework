@@ -1860,7 +1860,7 @@ do
       for field, value in pairs(data) do
         local key = get_property_key(field)
         if key then
-          assert_call(menu['Set'..key] or menu[key], key, item, unpack_cond(value))
+          assert_call(item['Set'..key] or item[key], key, item, unpack_cond(value))
         end
       end
       return true
