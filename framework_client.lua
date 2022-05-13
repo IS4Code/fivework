@@ -229,22 +229,34 @@ do
       return true
     end
   end
-end
-
-function FW_RegisterNetCallback(name, eventname, processor)
-  return AddEventHandler(eventname, function(...)
-    local args
-    if processor then
-      args = t_pack(processor(...))
-    else
-      args = t_pack(...)
+  
+  local callbacks_queue = {}
+  
+  Cfx_CreateThread(function()
+    while true do
+      Cfx_Wait(0)
+      if #callbacks_queue > 0 then
+        TriggerServerEvent('fivework:ClientCallbacks', callbacks_queue)
+        callbacks_queue = {}
+      end
     end
-    return TriggerServerEvent('fivework:ClientCallback', name, observe_state(args))
   end)
-end
 
-function FW_TriggerNetCallback(name, ...)
-  return TriggerServerEvent('fivework:ClientCallback', name, observe_state(t_pack(...)))
+  function FW_RegisterNetCallback(name, eventname, processor)
+    return AddEventHandler(eventname, function(...)
+      local args
+      if processor then
+        args = t_pack(processor(...))
+      else
+        args = t_pack(...)
+      end
+      return t_insert(callbacks_queue, {name, observe_state(args)})
+    end)
+  end
+  
+  function FW_TriggerNetCallback(name, ...)
+    return t_insert(callbacks_queue, {name, observe_state(t_pack(...))})
+  end
 end
 local FW_TriggerNetCallback = _ENV.FW_TriggerNetCallback
 

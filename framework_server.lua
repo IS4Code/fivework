@@ -157,14 +157,21 @@ do
     end
   end
   
-  RegisterNetEvent('fivework:ClientCallback')
-  AddEventHandler('fivework:ClientCallback', function(name, args)
+  RegisterNetEvent('fivework:ClientCallbacks')
+  AddEventHandler('fivework:ClientCallbacks', function(data)
     local source = _ENV.source
-    retrieve_observed_state(source, args)
     
-    local handler = net_callback_handlers[name]
-    if handler then
-      return handler(source, t_unpack(args))
+    for _, record in ipairs(data) do
+      local name, args = t_unpack(record)
+      retrieve_observed_state(source, args)
+      
+      local handler = net_callback_handlers[name]
+      if handler then
+        local ok, msg = xpcall(handler, d_traceback, source, t_unpack(args))
+        if not ok then
+          print("Error in callback "..name..":\n", msg)
+        end
+      end
     end
   end)
 end
