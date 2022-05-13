@@ -1660,7 +1660,7 @@ do
         for field, value in pairs(modelProperties) do
           local key = get_property_key(field)
           if key then
-            assert_call_env('SetPed'..key, ped, unpack_cond(value))
+            assert_call(_ENV['SetPed'..key] or _ENV['SetEntity'..key], 'SetPed'..key, ped, unpack_cond(value))
           end
         end
       end
@@ -1684,7 +1684,7 @@ do
       for field, value in pairs(entityProperties) do
         local key = get_property_key(field)
         if key then
-          assert_call_env('SetPed'..key, ped, unpack_cond(value))
+          assert_call(_ENV['SetPed'..key] or _ENV['SetEntity'..key], 'SetPed'..key, ped, unpack_cond(value))
         end
       end
     end
