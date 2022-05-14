@@ -604,8 +604,12 @@ do
   
   function LoadResourceData(name, file)
     local data = LoadResourceFile(name, file)
-    if data then
-      return t_unpack(transform_table_back(j_decode(data)))
+    if data and data ~= '' then
+      local obj = j_decode(data)
+      if not obj then
+        return error('invalid data encountered in file '..name..":\n"..data)
+      end
+      return t_unpack(transform_table_back(obj))
     end
   end
   
