@@ -1,5 +1,6 @@
 local NetworkGetEntityFromNetworkId = _ENV.NetworkGetEntityFromNetworkId
 local t_unpack = table.unpack
+local select = _ENV.select
 
 FW_RegisterCallback('OnEntityCreated', 'entityCreated')
 FW_RegisterCallback('OnEntityCreating', 'entityCreating')
@@ -86,15 +87,15 @@ FW_CreateCallbackHandler('OnGameEvent', function(playerid, type, ...)
     local entity, destroyer, weapon = ...
     entity = id_to_server_id(playerid, entity)
     destroyer = id_to_server_id(playerid, destroyer)
-    FW_TriggerCallback('OnVehicleDestroyed', playerid, entity, destroyer, weapon)
+    FW_TriggerCallback('OnVehicleDestroyed', playerid, entity, destroyer, weapon, select(4, ...))
   elseif type == 'CEventNetworkPlayerCollectedPickup' then
     local pickup, player, hash, amount = ...
-    FW_TriggerCallback('OnPlayerPickup', playerid, pickup, player, hash, amount)
+    FW_TriggerCallback('OnPlayerPickup', playerid, pickup, player, hash, amount, select(5, ...))
   elseif type == 'CEventNetworkEntityDamage' then
-    local victim, attacker, _, fatal, weapon = ...
+    local victim, attacker, unk1, unk2, unk3, fatal, weapon = ...
     victim = id_to_server_id(playerid, victim)
     attacker = id_to_server_id(playerid, attacker)
-    FW_TriggerCallback('OnEntityDamaged', playerid, victim, attacker, weapon, fatal)
+    FW_TriggerCallback('OnEntityDamaged', playerid, victim, attacker, weapon, fatal and fatal ~= 0, unk1, unk2, unk3, select(8, ...))
   end
 end)
 
