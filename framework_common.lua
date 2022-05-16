@@ -75,6 +75,10 @@ function FW_Schedule(scheduler, ...)
   return cor_yield(scheduler, ...)
 end
 
+local function immediate(done, ...)
+  return ...
+end
+
 local function call_or_wrap_async(func, ...)
   if FW_IsAsync() then
     return true, func(...)
@@ -218,7 +222,7 @@ local public = _ENV.public
 function FW_TriggerCallback(name, ...)
   local handler = public[name]
   if handler then
-    return call_or_wrap_async(handler, ...)
+    return immediate(call_or_wrap_async(handler, ...))
   end
 end
 local FW_TriggerCallback = _ENV.FW_TriggerCallback
@@ -267,6 +271,6 @@ local cmd, cmd_ac = _ENV.cmd, _ENV.cmd_ac
 function FW_TriggerCommand(name, ...)
   local handler = cmd[name] or cmd_ac[name]
   if handler then
-    return call_or_wrap_async(handler, ...)
+    return immediate(call_or_wrap_async(handler, ...))
   end
 end
