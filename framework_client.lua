@@ -1804,6 +1804,7 @@ do
           add_item(menu, itemData)
         end
       end
+      menu:RefreshIndex()
       for field, value in pairs(data) do
         local key = get_property_key(field)
         if key then
@@ -1862,7 +1863,6 @@ do
       end
     end
     
-    pool:RefreshIndex()
     menu:Visible(true)
   end
   
