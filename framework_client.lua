@@ -1793,18 +1793,20 @@ do
     end
     
     init_menu = function(menu, data)
+      local items = data.Items
+      if items then
+        for _, itemData in ipairs(items) do
+          add_item(menu, itemData)
+        end
+      end
       for field, value in pairs(data) do
         local key = get_property_key(field)
         if key then
-          if key == 'Items' then
-            for _, data in ipairs(value) do
-              add_item(menu, data)
-            end
-          elseif key == 'Name' then
+          if key == 'Name' then
             local name = unpack_cond(value)
             names[menu] = name
             by_name[name] = menu
-          else
+          elseif key ~= 'Items' then
             assert_call(menu['Set'..key] or menu[key], key, menu, unpack_cond(value))
           end
         end
