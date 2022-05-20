@@ -1783,7 +1783,12 @@ do
               names[item] = name
               by_name[name] = item
             else
-              assert_call(item['Set'..key] or item[key], key, item, unpack_cond(value))
+              local func = item['Set'..key] or item[key]
+              if func == nil or type(func) == 'function' then
+                assert_call(func, key, item, unpack_cond(value))
+              else
+                item[key] = unpack_cond(value)
+              end
             end
           end
         end
@@ -1807,7 +1812,12 @@ do
             names[menu] = name
             by_name[name] = menu
           elseif key ~= 'Items' then
-            assert_call(menu['Set'..key] or menu[key], key, menu, unpack_cond(value))
+            local func = menu['Set'..key] or menu[key]
+            if func == nil or type(func) == 'function' then
+              assert_call(func, key, menu, unpack_cond(value))
+            else
+              menu[key] = unpack_cond(value)
+            end
           end
         end
       end
