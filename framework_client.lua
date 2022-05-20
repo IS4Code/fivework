@@ -1827,7 +1827,7 @@ do
     init_menu(menu, data)
     
     for _, name in ipairs(event_names) do
-      menu['On'..name] = function(sender, item, index)
+      menu['On'..name] = function(sender, item, index, ...)
         local value
         if item and items[item] then
           if index then
@@ -1847,7 +1847,7 @@ do
         if type(value) == 'table' then
           value = nil
         end
-        FW_TriggerNetCallback('OnNativeUI'..name, names[sender], item, index, value)
+        FW_TriggerNetCallback('OnNativeUI'..name, names[sender], item, index, value, ...)
       end
     end
     
