@@ -232,10 +232,13 @@ do
       end
     end
     local function complete(...)
+      local handled = false
       for _, callback in ipairs(callbacks) do
         callback(...)
+        handled = true
       end
       result = t_pack(...)
+      return handled
     end
     return subscribe, complete
   end
@@ -297,7 +300,9 @@ do
           if not ok then
             print("Error in asynchronous continuation:\n", msg)
           end
-          status = true
+          if not ok or msg then
+            status = true
+          end
         end
       end
       if not status then
@@ -311,7 +316,10 @@ do
     local continuations = player_continuations[source]
     if continuations then
       for token, handler in pairs(continuations) do
-        handler(false, "player dropped: "..reason)
+        local ok, msg = xpcall(handler, d_traceback, false, "player dropped: "..tostring(reason))
+        if not ok then
+          print("Error in asynchronous continuation:\n", msg)
+        end
       end
       player_continuations[source] = nil
     end
