@@ -321,9 +321,15 @@ do
     return setmetatable({}, {
       __mode = 'k',
       __index = function(self, func)
-        local value = 'fivework_func:'..GetHashKey(tostring(func))
-        registerer(value, func)
-        return value
+        local name = 'fivework_func:'..tostring(func)
+        registerer(name, function(...)
+          local result = immediate(FW_Async(func, ...))
+          if result == false then
+            CancelEvent()
+          end
+        end)
+        rawset(self, func, name)
+        return name
       end
     })
   end
