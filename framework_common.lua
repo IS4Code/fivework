@@ -274,3 +274,46 @@ function FW_TriggerCommand(name, ...)
     return immediate(call_or_wrap_async(handler, ...))
   end
 end
+
+-- misc
+
+local TriggerEvent = _ENV.TriggerEvent
+local TriggerServerEvent = _ENV.TriggerServerEvent
+local TriggerClientEvent = _ENV.TriggerClientEvent
+
+do
+  local function event_table(trigger, prefix, separator, parent)
+    return setmetatable({}, {
+      __call = function(self, arg, ...)
+        if arg == parent then
+          return trigger(prefix, ...)
+        else
+          return trigger(prefix, arg, ...)
+        end
+      end,
+      __index = function(self, key)
+        local t = event_table(trigger, prefix..separator..key, separator, self)
+        rawset(self, key, t)
+        return t
+      end
+    })
+  end
+  
+  function EventsFor(prefix, separator)
+    return event_table(TriggerEvent, prefix, separator)
+  end
+  
+  if TriggerServerEvent then
+    function ServerEventsFor(prefix, separator)
+      return event_table(TriggerServerEvent, prefix, separator)
+    end
+  end
+  
+  if TriggerClientEvent then
+    function ClientEventsFor(playerid, prefix, separator)
+      return event_table(function(name, ...)
+        return TriggerClientEvent(name, playerid, ...)
+      end, prefix, separator)
+    end
+  end
+end
