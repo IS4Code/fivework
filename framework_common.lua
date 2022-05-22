@@ -276,16 +276,18 @@ end
 local TriggerEvent = _ENV.TriggerEvent
 local TriggerServerEvent = _ENV.TriggerServerEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent
+local WasEventCanceled = _ENV.WasEventCanceled
 
 do
   local function event_table(trigger, prefix, separator, parent)
     return setmetatable({}, {
       __call = function(self, arg, ...)
         if arg == parent then
-          return trigger(prefix, ...)
+          trigger(prefix, ...)
         else
-          return trigger(prefix, arg, ...)
+          trigger(prefix, arg, ...)
         end
+        return not WasEventCanceled()
       end,
       __index = function(self, key)
         local t = event_table(trigger, prefix..separator..key, separator, self)
