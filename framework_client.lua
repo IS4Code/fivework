@@ -911,6 +911,37 @@ do
 end
 local MoveObject = _ENV.MoveObject
 
+do
+  local function request_scheduler(callback, request, check, arg, timeout)
+    return Cfx_CreateThread(function()
+      request(arg)
+      local time = GetGameTimer()
+      while not check(arg) do
+        request(arg)
+        Cfx_Wait(0)
+        if is_timeout(timeout, time) then
+          return callback(false)
+        end
+      end
+      return callback(true)
+    end)
+  end
+  
+  local function request_func(valid, check, request)
+    return function(arg, ...)
+      if not valid(arg) then return false end
+      return check(arg) or FW_Schedule(request_scheduler, request, check, arg, ...)
+    end
+  end
+  
+  NetworkTakeControlOfDoor = request_func(NetworkIsDoorNetworked, NetworkHasControlOfDoor, NetworkRequestControlOfDoor)
+  NetworkTakeControlOfEntity = request_func(DoesEntityExist, NetworkHasControlOfEntity, NetworkRequestControlOfEntity)
+  NetworkTakeControlOfNetworkId = request_func(NetworkDoesNetworkIdExist, NetworkHasControlOfNetworkId, NetworkRequestControlOfNetworkId)
+end
+local NetworkTakeControlOfDoor = _ENV.NetworkTakeControlOfDoor
+local NetworkTakeControlOfEntity = _ENV.NetworkTakeControlOfEntity
+local NetworkTakeControlOfNetworkId = _ENV.NetworkTakeControlOfNetworkId
+
 -- text drawing
 
 local AddTextEntry = _ENV.AddTextEntry
