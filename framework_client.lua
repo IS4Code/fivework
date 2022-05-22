@@ -15,6 +15,7 @@ local select = _ENV.select
 local setmetatable = _ENV.setmetatable
 local m_type = math.type
 local m_huge = math.huge
+local m_min = math.min
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local t_concat = table.concat
@@ -48,6 +49,15 @@ local CancelEvent = _ENV.CancelEvent
 local GetHashKey = _ENV.GetHashKey
 local PlayerId = _ENV.PlayerId
 local PlayerPedId = _ENV.PlayerPedId
+
+do
+  local Cfx_Wait_Orig = Cfx_Wait
+  function FW_SetMinWaitTime(time)
+    Cfx_Wait = function(interval)
+      return Cfx_Wait_Orig(m_min(time, interval))
+    end
+  end
+end
 
 local FW_Async = _ENV.FW_Async
 
