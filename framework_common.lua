@@ -18,6 +18,8 @@ local t_unpack_orig = table.unpack
 local t_insert = table.insert
 local d_traceback = debug.traceback
 
+local GetHashKey = _ENV.GetHashKey
+
 local Cfx_SetTimeout = Citizen.SetTimeout
 local Cfx_CreateThread = Citizen.CreateThread
 local Cfx_Await = Citizen.Await
@@ -315,5 +317,26 @@ do
         return TriggerClientEvent(name, playerid, ...)
       end, prefix, separator)
     end
+  end
+end
+
+local AddEventHandler = _ENV.AddEventHandler
+local CancelEvent = _ENV.CancelEvent
+do
+  local function create_event_cache(registerer)
+    return setmetatable({}, {
+      __mode = 'k',
+      __index = function(self, func)
+        local value = 'fivework_func:'..GetHashKey(tostring(func))
+        registerer(value, func)
+        return value
+      end
+    })
+  end
+
+  local event_cache = create_event_cache(AddEventHandler)
+  
+  function GetFunctionEvent(func)
+    return event_cache[func]
   end
 end
