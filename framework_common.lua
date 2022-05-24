@@ -13,6 +13,8 @@ local rawset = _ENV.rawset
 local pcall = _ENV.pcall
 local xpcall = _ENV.xpcall
 local ipairs = _ENV.ipairs
+local setmetatable = _ENV.setmetatable
+local type = _ENV.type
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local t_insert = table.insert
@@ -230,9 +232,39 @@ local registered_commands = {}
 local function after_command(source, rawCommand, status, ...)
   local result = FW_TriggerCallback('OnPlayerPerformedCommand', source, rawCommand, status, ...)
   if not status and not result then
-    return print("Error from command '"..rawCommand.."':\n", ...)
+    return print("Error from command '"..tostring(rawCommand).."':\n", ...)
   end
 end
+
+local function call_command(source, args, result, ...)
+  if result == true then
+    return after_command(source, args, xpcall(args.handler, d_traceback, source, args, ...))
+  elseif result ~= false then
+    return after_command(source, args, xpcall(args.handler, d_traceback, source, args, t_unpack(args)))
+  end
+end
+
+local command_mt = {
+  __tostring = function(self)
+    return self.raw or ""
+  end,
+  __index = function(self, key)
+    local raw = self.raw
+    if type(raw) == 'string' then
+      local value
+      if key == 'rawName' then
+        local pos, _, match = raw:find('^%s*([^%s]+)%s*')
+        if pos then
+          value = match
+        end
+      elseif key == 'rawArgs' then
+        value = raw:gsub('^%s*[^%s]+%s*', '')
+      end
+      rawset(self, key, value)
+      return value
+    end
+  end
+}
 
 local function cmd_newindex(restricted)
   return function(self, key, value)
@@ -240,12 +272,13 @@ local function cmd_newindex(restricted)
       registered_commands[key] = RegisterCommand(key, function(source, args, rawCommand)
         local func = self[key]
         if func then
+          args.raw = rawCommand
+          args.handler = func
+          args.name = key
+          setmetatable(args, command_mt)
           return immediate(FW_Async(function(...)
             Sleep(0)
-            local result = FW_TriggerCallback('OnPlayerReceivedCommand', source, rawCommand, ...)
-            if result ~= false then
-              return after_command(source, rawCommand, xpcall(func, d_traceback, source, rawCommand, ...))
-            end
+            return call_command(source, args, FW_TriggerCallback('OnPlayerReceivedCommand', source, args, ...))
           end, t_unpack(args)))
         end
       end, restricted)
