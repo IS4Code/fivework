@@ -244,7 +244,7 @@ local function cmd_newindex(restricted)
             Sleep(0)
             local result = FW_TriggerCallback('OnPlayerReceivedCommand', source, rawCommand, ...)
             if result ~= false then
-              return after_command(source, rawCommand, pcall(func, source, rawCommand, ...))
+              return after_command(source, rawCommand, xpcall(func, d_traceback, source, rawCommand, ...))
             end
           end, t_unpack(args)))
         end
