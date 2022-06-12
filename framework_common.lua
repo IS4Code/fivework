@@ -18,7 +18,10 @@ local type = _ENV.type
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local t_insert = table.insert
+local t_concat = table.concat
 local d_getinfo = debug.getinfo
+local d_getlocal = debug.getlocal
+local m_huge = math.huge
 
 local GetHashKey = _ENV.GetHashKey
 local GetGameTimer = _ENV.GetGameTimer
@@ -31,6 +34,8 @@ local function t_unpack(t, i)
   return t_unpack_orig(t, i or 1, t.n)
 end
 
+-- configuration
+
 FW_ErrorLog = print
 FW_Traceback = debug.traceback
 
@@ -38,6 +43,93 @@ local monitor_interval = 100
 
 function FW_SetTimeMonitor(interval)
   monitor_interval = interval
+end
+
+function FW_PrettyTraceback(thread, message, level)
+  if type(thread) ~= 'thread' then
+    message, level = thread, message
+    thread = nil
+  end
+  
+  if message ~= nil and type(message) ~= 'string' then
+    return message
+  end
+  
+  level = level or 1
+  
+  local lines = {}
+  if message then
+    t_insert(lines, message)
+  end
+  
+  for i = level + 1, m_huge do
+    local info = thread and d_getinfo(thread, i, 'nlStuf') or d_getinfo(i, 'nlStuf')
+    if not info then
+      break
+    end
+    local func = info.func
+    
+    if func == pcall or func == xpcall then
+      break
+    end
+    
+    if func ~= error and func ~= assert then
+      local what, name, namewhat = info.what, info.name, info.namewhat
+      if not name then
+        if what == 'main' then
+          name = "<"..what..">"
+        elseif func then
+          name = tostring(func):gsub('^function: ', '$')
+          namewhat = nil
+        end
+      end
+      
+      local args = {}
+      
+      local function add_arg(j)
+        local name, value
+        if thread then name, value = d_getlocal(thread, i + 1, j) else name, value = d_getlocal(i + 1, j) end
+        if not name then
+          return false
+        end
+        local value_type = type(value)
+        value = tostring(value):gsub('^'..value_type..': ', '$')
+        value = value_type:sub(1, 3).."("..value..")"
+        local str
+        if name:sub(1, 1) == '(' then
+          str = value
+        else
+          str = name.." = "..value
+        end
+        t_insert(args, str)
+        return true
+      end
+      
+      for j = 1, what == 'C' and m_huge or info.nparams do
+        if not add_arg(j) then break end
+      end
+      
+      if info.isvararg then
+        for j = -1, -m_huge, -1 do
+          if not add_arg(j) then break end
+        end
+      end
+      
+      local location = info.short_src
+      local line, linestart, lineend = info.currentline, info.linedefined, info.lastlinedefined
+      if line and line >= 0 then
+        location = location..":"..line
+      elseif linestart and linestart >= 0 then
+        location = location..":"..linestart..".."..lineend
+      end
+      
+      local fields = {"at", name.."("..t_concat(args, ", ")..")"}
+      t_insert(fields, "in")
+      t_insert(fields, location)
+      t_insert(lines, t_concat(fields, " "))
+    end
+  end
+  return t_concat(lines, "\n")
 end
 
 -- async processing
