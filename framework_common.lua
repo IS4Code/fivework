@@ -30,6 +30,8 @@ local function t_unpack(t, i)
   return t_unpack_orig(t, i or 1, t.n)
 end
 
+FW_ErrorLog = print
+
 -- async processing
 
 local active_threads = setmetatable({}, {
@@ -52,14 +54,14 @@ function FW_Async(func, ...)
   on_yield = function(status, ok_or_scheduler, ...)
     if not status then
       active_threads[thread] = nil
-      return false, print("Unexpected error from coroutine:\n", ok_or_scheduler, ...)
+      return false, FW_ErrorLog("Unexpected error from coroutine:\n", ok_or_scheduler, ...)
     end
     if cor_status(thread) ~= 'dead' then
       return false, schedule(ok_or_scheduler, ...)
     end
     active_threads[thread] = nil
     if not ok_or_scheduler then
-      return false, print("Error from coroutine:\n", ...)
+      return false, FW_ErrorLog("Error from coroutine:\n", ...)
     end
     return true, ...
   end
@@ -232,7 +234,7 @@ local registered_commands = {}
 local function after_command(source, rawCommand, status, ...)
   local result = FW_TriggerCallback('OnPlayerPerformedCommand', source, rawCommand, status, ...)
   if not status and not result then
-    return print("Error from command '"..tostring(rawCommand).."':\n", ...)
+    return FW_ErrorLog("Error from command '"..tostring(rawCommand).."':\n", ...)
   end
 end
 

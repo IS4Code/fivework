@@ -169,7 +169,7 @@ do
       if handler then
         local ok, msg = xpcall(handler, d_traceback, source, t_unpack(args))
         if not ok then
-          print("Error in callback "..name..":\n", msg)
+          FW_ErrorLog("Error in callback "..name..":\n", msg)
         end
       end
     end
@@ -298,7 +298,7 @@ do
         if handler then
           local ok, msg = xpcall(handler, d_traceback, status, t_unpack(args))
           if not ok then
-            print("Error in asynchronous continuation:\n", msg)
+            FW_ErrorLog("Error in asynchronous continuation:\n", msg)
           end
           if not ok or msg then
             status = true
@@ -306,7 +306,7 @@ do
         end
       end
       if not status then
-        print("Error from unhandled asynchronous call:\n", t_unpack(args))
+        FW_ErrorLog("Error from unhandled asynchronous call:\n", t_unpack(args))
       end
     end
   end)
@@ -318,7 +318,7 @@ do
       for token, handler in pairs(continuations) do
         local ok, msg = xpcall(handler, d_traceback, false, "player dropped: "..tostring(reason))
         if not ok then
-          print("Error in asynchronous continuation:\n", msg)
+          FW_ErrorLog("Error in asynchronous continuation:\n", msg)
         end
       end
       player_continuations[source] = nil
