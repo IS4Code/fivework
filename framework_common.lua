@@ -79,7 +79,7 @@ function FW_PrettyTraceback(thread, message, level)
         if what == 'main' then
           name = "<"..what..">"
         elseif func then
-          name = tostring(func):gsub('^function: ', '$')
+          name = tostring(func):gsub('^function: 0*', '$')
           namewhat = nil
         end
       end
@@ -93,7 +93,7 @@ function FW_PrettyTraceback(thread, message, level)
           return false
         end
         local value_type = type(value)
-        value = tostring(value):gsub('^'..value_type..': ', '$')
+        value = tostring(value):gsub('^'..value_type..': 0*', '$')
         value = value_type:sub(1, 3).."("..value..")"
         local str
         if name:sub(1, 1) == '(' then
