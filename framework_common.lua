@@ -46,6 +46,7 @@ function FW_SetTimeMonitor(interval)
 end
 
 do
+  local string_escape_pattern = "([\"\\\a\b\f\n\r\t\v])"
   local string_escapes = {
     ["\""]="\\\"", ["\\"]="\\\\",
     ["\a"]="\\a", ["\b"]="\\b", ["\f"]="\\f", ["\n"]="\\n", ["\r"]="\\r", ["\t"]="\\t", ["\v"]="\\v"
@@ -102,7 +103,12 @@ do
           if value_type == 'nil' or value_type == 'boolean' or value_type == 'number' then
             value = tostring(value)
           elseif value_type == 'string' then
-            value = "\""..value:gsub("([\"\\\a\b\f\n\r\t\v])", string_escapes).."\""
+            if #value > 32 then
+              value = value:sub(1, 29)
+              value = "\""..value:gsub(string_escape_pattern, string_escapes).."\"..."
+            else
+              value = "\""..value:gsub(string_escape_pattern, string_escapes).."\""
+            end
           else
             value = tostring(value):gsub('^'..value_type..': 0*', '$')
             value = value_type.."("..value..")"
@@ -122,8 +128,16 @@ do
         end
         
         if info.isvararg then
+          local args_over = 0
           for j = -1, -m_huge, -1 do
             if not add_arg(j) then break end
+            if j < -8 then
+              args[#args] = nil
+              args_over = args_over + 1
+            end
+          end
+          if args_over > 0 then
+            t_insert(args, "... ("..args_over.." more)")
           end
         end
         
