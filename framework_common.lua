@@ -126,6 +126,9 @@ function FW_PrettyTraceback(thread, message, level)
       local fields = {"at", name.."("..t_concat(args, ", ")..")"}
       t_insert(fields, "in")
       t_insert(fields, location)
+      if info.istailcall then
+        t_insert(fields, "(tail call)")
+      end
       t_insert(lines, t_concat(fields, " "))
     end
   end
