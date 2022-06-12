@@ -158,7 +158,7 @@ local function check_time(start_time, func, thread)
         local ok
         ok, traceback = pcall(function_info, func)
       end
-      FW_ErrorLog("Warning: coroutine code took", start_time - time, "ms to execute:\n", traceback)
+      FW_ErrorLog("Warning: coroutine code took", time - start_time, "ms to execute:\n", traceback)
     end
   end
 end
