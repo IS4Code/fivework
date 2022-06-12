@@ -93,8 +93,14 @@ function FW_PrettyTraceback(thread, message, level)
           return false
         end
         local value_type = type(value)
-        value = tostring(value):gsub('^'..value_type..': 0*', '$')
-        value = value_type:sub(1, 3).."("..value..")"
+        if value_type == 'nil' or value_type == 'boolean' or value_type == 'number' then
+          value = tostring(value)
+        elseif value_type == 'string' then
+          value = "\""..value.."\""
+        else
+          value = tostring(value):gsub('^'..value_type..': 0*', '$')
+          value = value_type.."("..value..")"
+        end
         local str
         if name:sub(1, 1) == '(' then
           str = value
