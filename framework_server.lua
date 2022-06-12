@@ -13,7 +13,6 @@ local rawset = _ENV.rawset
 local rawget = _ENV.rawget
 local type = _ENV.type
 local xpcall = _ENV.xpcall
-local d_traceback = debug.traceback
 local m_type = math.type
 local m_huge = math.huge
 local ipairs = _ENV.ipairs
@@ -167,7 +166,7 @@ do
       
       local handler = net_callback_handlers[name]
       if handler then
-        local ok, msg = xpcall(handler, d_traceback, source, t_unpack(args))
+        local ok, msg = xpcall(handler, FW_Traceback, source, t_unpack(args))
         if not ok then
           FW_ErrorLog("Error in callback "..name..":\n", msg)
         end
@@ -296,7 +295,7 @@ do
       if continuations then
         local handler = continuations[token]
         if handler then
-          local ok, msg = xpcall(handler, d_traceback, status, t_unpack(args))
+          local ok, msg = xpcall(handler, FW_Traceback, status, t_unpack(args))
           if not ok then
             FW_ErrorLog("Error in asynchronous continuation:\n", msg)
           end
@@ -316,7 +315,7 @@ do
     local continuations = player_continuations[source]
     if continuations then
       for token, handler in pairs(continuations) do
-        local ok, msg = xpcall(handler, d_traceback, false, "player dropped: "..tostring(reason))
+        local ok, msg = xpcall(handler, FW_Traceback, false, "player dropped: "..tostring(reason))
         if not ok then
           FW_ErrorLog("Error in asynchronous continuation:\n", msg)
         end

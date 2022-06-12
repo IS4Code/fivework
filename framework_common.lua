@@ -18,9 +18,10 @@ local type = _ENV.type
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local t_insert = table.insert
-local d_traceback = debug.traceback
+local d_getinfo = debug.getinfo
 
 local GetHashKey = _ENV.GetHashKey
+local GetGameTimer = _ENV.GetGameTimer
 
 local Cfx_SetTimeout = Citizen.SetTimeout
 local Cfx_CreateThread = Citizen.CreateThread
@@ -31,6 +32,13 @@ local function t_unpack(t, i)
 end
 
 FW_ErrorLog = print
+FW_Traceback = debug.traceback
+
+local monitor_interval = 100
+
+function FW_SetTimeMonitor(interval)
+  monitor_interval = interval
+end
 
 -- async processing
 
@@ -39,7 +47,28 @@ local active_threads = setmetatable({}, {
 })
 
 local function thread_func(func, ...)
-  return xpcall(func, d_traceback, ...)
+  return xpcall(func, FW_Traceback, ...)
+end
+
+local function function_info(func)
+  local info = d_getinfo(func)
+  return "running "..info.what.." function "..info.namewhat.." in "..info.short_src..":"..info.linedefined..".."..info.lastlinedefined
+end
+
+local function check_time(start_time, func, thread)
+  if monitor_interval then
+    local time = GetGameTimer()
+    if time > start_time + monitor_interval then
+      local traceback
+      if cor_status(thread) ~= 'dead' then
+        traceback = FW_Traceback(thread)
+      else
+        local ok
+        ok, traceback = pcall(function_info, func)
+      end
+      FW_ErrorLog("Warning: coroutine code took", start_time - time, "ms to execute:\n", traceback)
+    end
+  end
 end
 
 function FW_Async(func, ...)
@@ -48,10 +77,11 @@ function FW_Async(func, ...)
   local on_yield
   local function schedule(scheduler, ...)
     return scheduler(function(...)
-      return on_yield(cor_resume(thread, ...))
+      return on_yield(GetGameTimer(), cor_resume(thread, ...))
     end, ...)
   end
-  on_yield = function(status, ok_or_scheduler, ...)
+  on_yield = function(start_time, status, ok_or_scheduler, ...)
+    check_time(start_time, func, thread)
     if not status then
       active_threads[thread] = nil
       return false, FW_ErrorLog("Unexpected error from coroutine:\n", ok_or_scheduler, ...)
@@ -65,7 +95,7 @@ function FW_Async(func, ...)
     end
     return true, ...
   end
-  return on_yield(cor_resume(thread, func, ...))
+  return on_yield(GetGameTimer(), cor_resume(thread, func, ...))
 end
 local FW_Async = _ENV.FW_Async
 
@@ -240,9 +270,9 @@ end
 
 local function call_command(source, args, result, ...)
   if result == true then
-    return after_command(source, args, xpcall(args.handler, d_traceback, source, args, ...))
+    return after_command(source, args, xpcall(args.handler, FW_Traceback, source, args, ...))
   elseif result ~= false then
-    return after_command(source, args, xpcall(args.handler, d_traceback, source, args, t_unpack(args)))
+    return after_command(source, args, xpcall(args.handler, FW_Traceback, source, args, t_unpack(args)))
   end
 end
 

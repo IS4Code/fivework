@@ -11,7 +11,6 @@ local type = _ENV.type
 local error = _ENV.error
 local pcall = _ENV.pcall
 local xpcall = _ENV.xpcall
-local d_traceback = debug.traceback
 local assert = _ENV.assert
 local rawset = _ENV.rawset
 local select = _ENV.select
@@ -763,7 +762,7 @@ do
     if func == nil then
       return process_call(token, false, "attempt to call a nil value (field '"..name.."')")
     end
-    return process_call(token, xpcall(func, d_traceback, t_unpack(args)))
+    return process_call(token, xpcall(func, FW_Traceback, t_unpack(args)))
   end
   
   RegisterNetEvent('fivework:ExecFunction')
