@@ -237,9 +237,16 @@ local function immediate(done, ...)
   return ...
 end
 
+local function log_error(status, ...)
+  if status then
+    return status, ...
+  end
+  return false, FW_ErrorLog("Error from handler:\n", ...)
+end
+
 local function call_or_wrap_async(func, ...)
   if FW_IsAsync() then
-    return true, func(...)
+    return log_error(xpcall(func, FW_Traceback, ...))
   else
     return FW_Async(func, ...)
   end
@@ -250,7 +257,7 @@ do
   AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
       call_or_wrap_async = function(func, ...)
-        return true, func(...)
+        return log_error(xpcall(func, FW_Traceback, ...))
       end
       local function disabled()
         return error('this function cannot be used while the script is stopping')
