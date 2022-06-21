@@ -167,7 +167,7 @@ do
             if what == 'main' then
               name = "<"..what..">"
             elseif func then
-              name = tostring(func):gsub('^function: 0?x?0*', '$')
+              name = tostring(func):gsub('^function: 0?x?0*', '0x')
               namewhat = nil
             end
           end
@@ -187,7 +187,7 @@ do
                 value = "\""..value:gsub(string_escape_pattern, string_escapes).."\""
               end
             else
-              value = tostring(value):gsub('^'..value_type..': 0?x?0*', '$')
+              value = tostring(value):gsub('^'..value_type..': 0?x?0*', '0x')
               value = value_type.."("..value..")"
             end
             local str
