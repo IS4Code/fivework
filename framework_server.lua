@@ -220,7 +220,7 @@ do
     return token
   end
   
-  local function newtask()
+  local function newtask(stack)
     local callbacks = {}
     local result
     local function subscribe(callback)
@@ -231,12 +231,19 @@ do
       end
     end
     local function complete(...)
+      result = t_pack(...)
       local handled = false
       for _, callback in ipairs(callbacks) do
         callback(...)
         handled = true
       end
-      result = t_pack(...)
+      if not handled then
+        local ok, msg = ...
+        if not ok then
+          stack.error = msg
+          error(stack)
+        end
+      end
       return handled
     end
     return subscribe, complete
@@ -245,7 +252,8 @@ do
   local function player_task_factory(name, transform, player, ...)
     local continuations = get_continuations(player)
     local token = newtoken(continuations)
-    local subscribe, complete = newtask()
+    local stack = FW_StackDump(2)
+    local subscribe, complete = newtask(stack)
     continuations[token] = function(...)
       continuations[token] = nil
       return complete(...)
@@ -257,12 +265,13 @@ do
   local function group_task_factory(name, transform, group, ...)
     local args = t_pack(...)
     local results = {}
+    local stack = FW_StackDump(2)
     for i, v in iterator(group) do
       local player = v or i
       
       local continuations = get_continuations(player)
       local token = newtoken(continuations)
-      local subscribe, complete = newtask()
+      local subscribe, complete = newtask(stack)
       continuations[token] = function(...)
         continuations[token] = nil
         return complete(...)

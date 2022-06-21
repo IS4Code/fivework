@@ -133,6 +133,11 @@ do
       t_insert(lines, message)
     end
     
+    local err = data.error
+    if err then
+      t_insert(err, tostring(err))
+    end
+    
     for i, info in ipairs(data) do
       if i >= level then
         local func = info.func
