@@ -47,6 +47,10 @@ end
 
 do
   local stackdump_mt = {}
+  
+  local function thread_level(thread)
+    return (thread and thread ~= cor_running()) and 0 or 1
+  end
 
   function FW_Traceback(thread, message, level)
     local thread_type = type(thread)
@@ -54,7 +58,7 @@ do
       return message
     end
     if thread_type == 'thread' then
-      level = (level or 1) + 1
+      level = (level or 1) + thread_level(thread)
     else
       message = (message or 1) + 1
     end
@@ -62,23 +66,28 @@ do
   end
 
   function FW_StackDump(thread, level)
-    level = level or 1
+    level = level or thread_level(thread)
     
     local data = setmetatable({}, stackdump_mt)
     
-    for i = level + 1, m_huge do
+    for i = level + thread_level(thread), m_huge do
       local info = thread and d_getinfo(thread, i, 'nlStuf') or d_getinfo(i, 'nlStuf')
       if not info then
         break
       end
-      t_insert(data, info)
       
       local args = {}
       info.args = args
       
+      local outside_thread
+      
       local function add_arg(j)
-        local name, value
-        if thread then name, value = d_getlocal(thread, i + 1, j) else name, value = d_getlocal(i + 1, j) end
+        local ok, name, value
+        if thread then ok, name, value = pcall(d_getlocal, thread, i + thread_level(thread) * 2, j) else ok, name, value = pcall(d_getlocal, i + 2, j) end
+        if not ok then
+          outside_thread = true
+          return false
+        end
         if not name then
           return false
         end
@@ -101,6 +110,12 @@ do
         end
         info.args_over = args_over
       end
+      
+      if outside_thread then
+        break
+      end
+      
+      t_insert(data, info)
     end
     
     return data
@@ -124,9 +139,9 @@ do
       return message
     end
     
-    level = level or 1
+    level = level or thread_level(thread)
     
-    local data = is_dump and thread or FW_StackDump(thread, level + 1)
+    local data = is_dump and thread or FW_StackDump(thread, level + thread_level(thread))
     
     local lines = {}
     if message then
