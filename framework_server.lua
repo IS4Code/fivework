@@ -220,6 +220,8 @@ do
     return token
   end
   
+  local error_dropped = {}
+  
   local function newtask(stack)
     local callbacks = {}
     local result
@@ -230,19 +232,22 @@ do
         t_insert(callbacks, callback)
       end
     end
-    local function complete(...)
-      result = t_pack(...)
+    local function complete(ok, ...)
+      local ok_result
+      if ok == error_dropped then
+        ok_result = false
+      else
+        ok_result = ok
+      end
+      result = t_pack(ok_result, ...)
       local handled = false
       for _, callback in ipairs(callbacks) do
-        callback(...)
+        callback(ok_result, ...)
         handled = true
       end
-      if not handled then
-        local ok, msg = ...
-        if not ok then
-          stack.error = msg
-          error(stack)
-        end
+      if not handled and not ok then
+        stack.error = ...
+        error(stack)
       end
       return handled
     end
@@ -324,7 +329,7 @@ do
     local continuations = player_continuations[source]
     if continuations then
       for token, handler in pairs(continuations) do
-        local ok, msg = xpcall(handler, FW_Traceback, false, "player dropped: "..tostring(reason))
+        local ok, msg = xpcall(handler, FW_Traceback, error_dropped, "player dropped: "..tostring(reason))
         if not ok then
           FW_ErrorLog("Error in asynchronous continuation:\n", msg)
         end
