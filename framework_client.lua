@@ -18,6 +18,7 @@ local setmetatable = _ENV.setmetatable
 local m_type = math.type
 local m_huge = math.huge
 local m_min = math.min
+local m_max = math.max
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local t_concat = table.concat
@@ -56,7 +57,7 @@ do
   local Cfx_Wait_Orig = Cfx_Wait
   function FW_SetMinWaitTime(time)
     Cfx_Wait = function(interval)
-      return Cfx_Wait_Orig(m_min(time, interval))
+      return Cfx_Wait_Orig(m_max(time, interval))
     end
   end
 end
