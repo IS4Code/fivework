@@ -21,6 +21,7 @@ local t_insert = table.insert
 local t_concat = table.concat
 local d_getinfo = debug.getinfo
 local d_getlocal = debug.getlocal
+local d_traceback = debug.traceback
 local m_huge = math.huge
 
 local GetHashKey = _ENV.GetHashKey
@@ -37,7 +38,6 @@ end
 -- configuration
 
 FW_ErrorLog = print
-FW_Traceback = debug.traceback
 
 local monitor_interval = 100
 
@@ -46,6 +46,66 @@ function FW_SetTimeMonitor(interval)
 end
 
 do
+  local stackdump_mt = {}
+
+  function FW_Traceback(thread, message, level)
+    local thread_type = type(thread)
+    if thread_type == 'table' and getmetatable(thread) == stackdump_mt then
+      return message
+    end
+    if thread_type == 'thread' then
+      level = (level or 1) + 1
+    else
+      message = (message or 1) + 1
+    end
+    return d_traceback(thread, message, level)
+  end
+
+  function FW_StackDump(thread, level)
+    level = level or 1
+    
+    local data = setmetatable({}, stackdump_mt)
+    
+    for i = level + 1, m_huge do
+      local info = thread and d_getinfo(thread, i, 'nlStuf') or d_getinfo(i, 'nlStuf')
+      if not info then
+        break
+      end
+      t_insert(data, info)
+      
+      local args = {}
+      info.args = args
+      
+      local function add_arg(j)
+        local name, value
+        if thread then name, value = d_getlocal(thread, i + 1, j) else name, value = d_getlocal(i + 1, j) end
+        if not name then
+          return false
+        end
+        t_insert(args, {name, value})
+        return true
+      end
+      
+      for j = 1, what == 'C' and m_huge or info.nparams do
+        if not add_arg(j) then break end
+      end
+      
+      if info.isvararg then
+        local args_over = 0
+        for j = -1, -m_huge, -1 do
+          if not add_arg(j) then break end
+          if j < -8 then
+            args[#args] = nil
+            args_over = args_over + 1
+          end
+        end
+        info.args_over = args_over
+      end
+    end
+    
+    return data
+  end
+  
   local string_escape_pattern = "([\"\\\a\b\f\n\r\t\v])"
   local string_escapes = {
     ["\""]="\\\"", ["\\"]="\\\\",
@@ -53,7 +113,9 @@ do
   }
   
   function FW_PrettyTraceback(thread, message, level)
-    if type(thread) ~= 'thread' then
+    local thread_type = type(thread)
+    local is_dump = thread_type == 'table' and getmetatable(thread) == stackdump_mt
+    if thread_type ~= 'thread' and not is_dump then
       message, level = thread, message
       thread = nil
     end
@@ -64,98 +126,80 @@ do
     
     level = level or 1
     
+    local data = is_dump and thread or FW_StackDump(thread, level + 1)
+    
     local lines = {}
     if message then
       t_insert(lines, message)
     end
     
-    for i = level + 1, m_huge do
-      local info = thread and d_getinfo(thread, i, 'nlStuf') or d_getinfo(i, 'nlStuf')
-      if not info then
-        break
-      end
-      local func = info.func
-      
-      if func == pcall or func == xpcall then
-        break
-      end
-      
-      if func ~= error and func ~= assert then
-        local what, name, namewhat = info.what, info.name, info.namewhat
-        if not name then
-          if what == 'main' then
-            name = "<"..what..">"
-          elseif func then
-            name = tostring(func):gsub('^function: 0?x?0*', '$')
-            namewhat = nil
-          end
+    for i, info in ipairs(data) do
+      if i >= level then
+        local func = info.func
+        
+        if func == pcall or func == xpcall then
+          break
         end
         
-        local args = {}
-        
-        local function add_arg(j)
-          local name, value
-          if thread then name, value = d_getlocal(thread, i + 1, j) else name, value = d_getlocal(i + 1, j) end
+        if func ~= error and func ~= assert then
+          local what, name, namewhat = info.what, info.name, info.namewhat
           if not name then
-            return false
+            if what == 'main' then
+              name = "<"..what..">"
+            elseif func then
+              name = tostring(func):gsub('^function: 0?x?0*', '$')
+              namewhat = nil
+            end
           end
-          local value_type = type(value)
-          if value_type == 'nil' or value_type == 'boolean' or value_type == 'number' then
-            value = tostring(value)
-          elseif value_type == 'string' then
-            if #value > 32 then
-              value = value:sub(1, 29)
-              value = "\""..value:gsub(string_escape_pattern, string_escapes).."\"..."
+          
+          local args = {}
+          
+          for i, v in ipairs(info.args) do
+            local name, value = t_unpack(v)
+            local value_type = type(value)
+            if value_type == 'nil' or value_type == 'boolean' or value_type == 'number' then
+              value = tostring(value)
+            elseif value_type == 'string' then
+              if #value > 32 then
+                value = value:sub(1, 29)
+                value = "\""..value:gsub(string_escape_pattern, string_escapes).."\"..."
+              else
+                value = "\""..value:gsub(string_escape_pattern, string_escapes).."\""
+              end
             else
-              value = "\""..value:gsub(string_escape_pattern, string_escapes).."\""
+              value = tostring(value):gsub('^'..value_type..': 0?x?0*', '$')
+              value = value_type.."("..value..")"
             end
-          else
-            value = tostring(value):gsub('^'..value_type..': 0?x?0*', '$')
-            value = value_type.."("..value..")"
-          end
-          local str
-          if name:sub(1, 1) == '(' then
-            str = value
-          else
-            str = name.." = "..value
-          end
-          t_insert(args, str)
-          return true
-        end
-        
-        for j = 1, what == 'C' and m_huge or info.nparams do
-          if not add_arg(j) then break end
-        end
-        
-        if info.isvararg then
-          local args_over = 0
-          for j = -1, -m_huge, -1 do
-            if not add_arg(j) then break end
-            if j < -8 then
-              args[#args] = nil
-              args_over = args_over + 1
+            local str
+            if name:sub(1, 1) == '(' then
+              str = value
+            else
+              str = name.." = "..value
             end
+            t_insert(args, str)
           end
-          if args_over > 0 then
+          
+          local args_over = info.args_over
+          if args_over and args_over > 0 then
             t_insert(args, "... ("..args_over.." more)")
           end
+          
+          local location = info.short_src
+          local line, linestart, lineend = info.currentline, info.linedefined, info.lastlinedefined
+          if line and line >= 0 then
+            location = location..":"..line
+          elseif linestart and linestart >= 0 then
+            location = location..":"..linestart..".."..lineend
+          end
+          
+          local fields = {"at", name.."("..t_concat(args, ", ")..")"}
+          t_insert(fields, "in")
+          t_insert(fields, location)
+          if info.istailcall then
+            t_insert(fields, "(tail call)")
+          end
+          t_insert(lines, t_concat(fields, " "))
         end
-        
-        local location = info.short_src
-        local line, linestart, lineend = info.currentline, info.linedefined, info.lastlinedefined
-        if line and line >= 0 then
-          location = location..":"..line
-        elseif linestart and linestart >= 0 then
-          location = location..":"..linestart..".."..lineend
-        end
-        
-        local fields = {"at", name.."("..t_concat(args, ", ")..")"}
-        t_insert(fields, "in")
-        t_insert(fields, location)
-        if info.istailcall then
-          t_insert(fields, "(tail call)")
-        end
-        t_insert(lines, t_concat(fields, " "))
       end
     end
     return t_concat(lines, "\n")
