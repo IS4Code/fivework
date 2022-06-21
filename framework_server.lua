@@ -252,7 +252,7 @@ do
   local function player_task_factory(name, transform, player, ...)
     local continuations = get_continuations(player)
     local token = newtoken(continuations)
-    local stack = FW_StackDump(2)
+    local stack = FW_StackDump(nil, 2)
     local subscribe, complete = newtask(stack)
     continuations[token] = function(...)
       continuations[token] = nil
@@ -265,7 +265,7 @@ do
   local function group_task_factory(name, transform, group, ...)
     local args = t_pack(...)
     local results = {}
-    local stack = FW_StackDump(2)
+    local stack = FW_StackDump(nil, 2)
     for i, v in iterator(group) do
       local player = v or i
       

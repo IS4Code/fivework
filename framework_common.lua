@@ -135,7 +135,7 @@ do
     
     local err = data.error
     if err then
-      t_insert(err, tostring(err))
+      t_insert(lines, tostring(err))
     end
     
     for i, info in ipairs(data) do
