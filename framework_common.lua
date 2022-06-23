@@ -154,7 +154,7 @@ do
     end
     
     for i, info in ipairs(data) do
-      if i >= level then
+      if not is_dump or i >= level then
         local func = info.func
         
         if func == pcall or func == xpcall then
@@ -229,7 +229,7 @@ end
 local function log_on_error(ok, ...)
   if not ok then
     FW_ErrorLog(...)
-    FW_ErrorLog("Called from:\n", FW_Traceback(nil, 1))
+    FW_ErrorLog("Called from:\n", FW_Traceback(nil, 2))
   end
   return ok, ...
 end
