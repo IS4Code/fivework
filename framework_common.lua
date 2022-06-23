@@ -168,7 +168,7 @@ do
               name = "<"..what..">"
             elseif func then
               for k, v in pairs(_ENV) do
-                if v == func then
+                if type(k) == 'string' and v == func then
                   name = k
                   break
                 end
@@ -194,8 +194,18 @@ do
                 value = "\""..value:gsub(string_escape_pattern, string_escapes).."\""
               end
             else
-              value = tostring(value):gsub('^'..value_type..': 0?x?0*', '0x')
-              value = value_type.."("..value..")"
+              local found
+              for k, v in pairs(_ENV) do
+                if type(k) == 'string' and v == value then
+                  found = true
+                  value = k
+                  break
+                end
+              end
+              if not found then
+                value = tostring(value):gsub('^'..value_type..': 0?x?0*', '0x')
+                value = value_type.."("..value..")"
+              end
             end
             local str
             if name:sub(1, 1) == '(' then
