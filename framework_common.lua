@@ -167,8 +167,15 @@ do
             if what == 'main' then
               name = "<"..what..">"
             elseif func then
-              name = tostring(func):gsub('^function: 0?x?0*', '0x')
-              namewhat = nil
+              for k, v in pairs(_ENV) do
+                if v == func then
+                  name = k
+                  break
+                end
+              end
+              if not name then
+                name = tostring(func):gsub('^function: 0?x?0*', '0x')
+              end
             end
           end
           
