@@ -226,6 +226,18 @@ do
   end
 end
 
+local function log_on_error(ok, ...)
+  if not ok then
+    FW_ErrorLog(...)
+    FW_ErrorLog("Called from:\n", FW_Traceback(nil, 1))
+  end
+  return ok, ...
+end
+
+function FW_TryCall(func, ...)
+  return log_on_error(xpcall(func, FW_Traceback, ...))
+end
+
 -- async processing
 
 local active_threads = setmetatable({}, {
