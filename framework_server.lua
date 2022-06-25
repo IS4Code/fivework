@@ -12,6 +12,7 @@ local error = _ENV.error
 local rawset = _ENV.rawset
 local rawget = _ENV.rawget
 local type = _ENV.type
+local pcall = _ENV.pcall
 local xpcall = _ENV.xpcall
 local m_type = math.type
 local m_huge = math.huge
@@ -392,6 +393,14 @@ do
     end
   end
   
+  local function try_call_result(factory)
+    return function(key)
+      return function(...)
+        return pcall(factory(key, transform_subscribe, nil, ...))
+      end
+    end
+  end
+  
   local function pass_result(factory)
     return function(key)
       return function(...)
@@ -403,6 +412,7 @@ do
   local func_patterns = {
     ['ForPlayer$'] = pass_result(player_task_factory),
     ['ForPlayerWait$'] = call_result(player_task_factory),
+    ['ForPlayerTryWait$'] = try_call_result(player_task_factory),
     ['ForPlayerDiscard$'] = pass_result(player_discard_factory),
     ['ForAll$'] = pass_result(all_task_factory),
     ['ForAllDiscard$'] = pass_result(all_discard_factory),
@@ -410,6 +420,7 @@ do
     ['ForGroupDiscard$'] = pass_result(group_discard_factory),
     ['ForOwner$'] = pass_result(owner_task_factory),
     ['ForOwnerWait$'] = call_result(owner_task_factory),
+    ['ForOwnerTryWait$'] = try_call_result(owner_task_factory),
     ['ForOwnerDiscard$'] = pass_result(owner_discard_factory),
     ['FromPlayer$'] = function(key)
       return function(player, ...)
