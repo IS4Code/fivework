@@ -271,10 +271,10 @@ do
     t_insert(queue, {...})
   end
   
-  local function player_task_factory(name, transform, player, ...)
+  local function player_task_factory(name, transform, stack_level, player, ...)
     local continuations = get_continuations(player)
     local token = newtoken(continuations)
-    local stack = FW_StackDump(nil, 2)
+    local stack = stack_level and FW_StackDump(nil, stack_level)
     local subscribe, complete = newtask(stack)
     continuations[token] = function(...)
       continuations[token] = nil
@@ -284,14 +284,14 @@ do
     return transform(subscribe)
   end
   
-  local function player_discard_factory(name, transform, player, ...)
+  local function player_discard_factory(name, transform, stack_level, player, ...)
     return remote_exec_function(player, name, t_pack(...))
   end
   
-  local function group_task_factory(name, transform, group, ...)
+  local function group_task_factory(name, transform, stack_level, group, ...)
     local args = t_pack(...)
     local results = {}
-    local stack = FW_StackDump(nil, 2)
+    local stack = stack_level and FW_StackDump(nil, stack_level)
     for i, v in iterator(group) do
       local player = v or i
       
@@ -308,7 +308,7 @@ do
     return results
   end
   
-  local function group_discard_factory(name, transform, group, ...)
+  local function group_discard_factory(name, transform, stack_level, group, ...)
     local args = t_pack(...)
     for i, v in iterator(group) do
       local player = v or i
@@ -316,26 +316,26 @@ do
     end
   end
   
-  local function all_task_factory(name, transform, ...)
-    return group_task_factory(name, transform, AllPlayers, ...)
+  local function all_task_factory(name, transform, stack_level, ...)
+    return group_task_factory(name, transform, stack_level and stack_level + 1, AllPlayers, ...)
   end
   
-  local function all_discard_factory(name, transform, ...)
-    return group_discard_factory(name, transform, AllPlayers, ...)
+  local function all_discard_factory(name, transform, stack_level, ...)
+    return group_discard_factory(name, transform, stack_level and stack_level + 1, AllPlayers, ...)
   end
   
-  local function owner_task_factory(name, transform, entity, ...)
+  local function owner_task_factory(name, transform, stack_level, entity, ...)
     local player = NetworkGetEntityOwner(entity)
     if not player then return end
     entity = NetworkGetNetworkIdFromEntity(entity)
-    return player_task_factory(name..'NetworkIdIn1', transform, player, entity, ...)
+    return player_task_factory(name..'NetworkIdIn1', transform, stack_level and stack_level + 1, player, entity, ...)
   end
   
-  local function owner_discard_factory(name, transform, entity, ...)
+  local function owner_discard_factory(name, transform, stack_level, entity, ...)
     local player = NetworkGetEntityOwner(entity)
     if not player then return end
     entity = NetworkGetNetworkIdFromEntity(entity)
-    return player_discard_factory(name..'NetworkIdIn1', transform, player, entity, ...)
+    return player_discard_factory(name..'NetworkIdIn1', transform, stack_level and stack_level + 1, player, entity, ...)
   end
   
   RegisterNetEvent('fivework:ExecFunctionResults')
@@ -387,7 +387,7 @@ do
   local function call_result(factory)
     return function(key)
       return function(...)
-        return factory(key, transform_subscribe, ...)()
+        return factory(key, transform_subscribe, nil, ...)()
       end
     end
   end
@@ -395,7 +395,7 @@ do
   local function pass_result(factory)
     return function(key)
       return function(...)
-        return factory(key, transform_subscribe, ...)
+        return factory(key, transform_subscribe, 2, ...)
       end
     end
   end
