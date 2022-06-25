@@ -766,9 +766,12 @@ do
     return process_call(token, xpcall(func, FW_Traceback, t_unpack(args)))
   end
   
-  RegisterNetEvent('fivework:ExecFunction')
-  AddEventHandler('fivework:ExecFunction', function(name, args, token)
-    return FW_Async(remote_call, name, token, args)
+  RegisterNetEvent('fivework:ExecFunctions')
+  AddEventHandler('fivework:ExecFunctions', function(queue)
+    for i, v in ipairs(queue) do
+      local name, args, token = t_unpack(v)
+      FW_Async(remote_call, name, token, args)
+    end
   end)
 end  
 

@@ -29,6 +29,8 @@ local CancelEvent = _ENV.CancelEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent
 local GetGameTimer = _ENV.GetGameTimer
 
+local Cfx_SetTimeout = Citizen.SetTimeout
+
 local function t_unpack(t, i)
   return t_unpack_orig(t, i or 1, t.n)
 end
@@ -254,6 +256,21 @@ do
     return subscribe, complete
   end
   
+  local exec_queue = {}
+  
+  local function remote_exec_function(player, ...)
+    local queue = exec_queue[player]
+    if not queue then
+      queue = {}
+      exec_queue[player] = queue
+      Cfx_SetTimeout(0, function()
+        exec_queue[player] = nil
+        TriggerClientEvent('fivework:ExecFunctions', player, queue)
+      end)
+    end
+    t_insert(queue, {...})
+  end
+  
   local function player_task_factory(name, transform, player, ...)
     local continuations = get_continuations(player)
     local token = newtoken(continuations)
@@ -263,7 +280,7 @@ do
       continuations[token] = nil
       return complete(...)
     end
-    TriggerClientEvent('fivework:ExecFunction', player, name, t_pack(...), token)
+    remote_exec_function(player, name, t_pack(...), token)
     return transform(subscribe)
   end
   
@@ -281,7 +298,7 @@ do
         continuations[token] = nil
         return complete(...)
       end
-      TriggerClientEvent('fivework:ExecFunction', player, name, args, token)
+      remote_exec_function(player, name, args, token)
       results[player] = transform(subscribe)
     end
     return results
