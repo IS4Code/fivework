@@ -128,6 +128,21 @@ do
     ["\a"]="\\a", ["\b"]="\\b", ["\f"]="\\f", ["\n"]="\\n", ["\r"]="\\r", ["\t"]="\\t", ["\v"]="\\v"
   }
   
+  local function find_global(value)
+    for k, v in pairs(_ENV) do
+      if type(k) == 'string' and v == value then
+        return k
+      end
+      if type(v) == 'table' and v ~= _ENV then
+        for k2, v2 in pairs(v) do
+          if v2 == value then
+            return k..'.'..k2
+          end
+        end
+      end
+    end
+  end
+  
   function FW_PrettyTraceback(thread, message, level)
     local thread_type = type(thread)
     local is_dump = thread_type == 'table' and getmetatable(thread) == stackdump_mt
@@ -168,12 +183,7 @@ do
             if what == 'main' then
               name = "<"..what..">"
             elseif func then
-              for k, v in pairs(_ENV) do
-                if type(k) == 'string' and v == func then
-                  name = k
-                  break
-                end
-              end
+              name = find_global(func)
               if not name then
                 name = tostring(func):gsub('^function: 0?x?0*', '0x')
               end
@@ -195,15 +205,10 @@ do
                 value = "\""..value:gsub(string_escape_pattern, string_escapes).."\""
               end
             else
-              local found
-              for k, v in pairs(_ENV) do
-                if type(k) == 'string' and v == value then
-                  found = true
-                  value = k
-                  break
-                end
-              end
-              if not found then
+              local name = find_global(value)
+              if name then
+                value = name
+              else
                 value = tostring(value):gsub('^'..value_type..': 0?x?0*', '0x')
                 value = value_type.."("..value..")"
               end
