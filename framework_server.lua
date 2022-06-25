@@ -284,6 +284,10 @@ do
     return transform(subscribe)
   end
   
+  local function player_discard_factory(name, transform, player, ...)
+    return remote_exec_function(player, name, t_pack(...))
+  end
+  
   local function group_task_factory(name, transform, group, ...)
     local args = t_pack(...)
     local results = {}
@@ -304,8 +308,20 @@ do
     return results
   end
   
+  local function group_discard_factory(name, transform, group, ...)
+    local args = t_pack(...)
+    for i, v in iterator(group) do
+      local player = v or i
+      remote_exec_function(player, name, args)
+    end
+  end
+  
   local function all_task_factory(name, transform, ...)
     return group_task_factory(name, transform, AllPlayers, ...)
+  end
+  
+  local function all_discard_factory(name, transform, ...)
+    return group_discard_factory(name, transform, AllPlayers, ...)
   end
   
   local function owner_task_factory(name, transform, entity, ...)
@@ -313,6 +329,13 @@ do
     if not player then return end
     entity = NetworkGetNetworkIdFromEntity(entity)
     return player_task_factory(name..'NetworkIdIn1', transform, player, entity, ...)
+  end
+  
+  local function owner_discard_factory(name, transform, entity, ...)
+    local player = NetworkGetEntityOwner(entity)
+    if not player then return end
+    entity = NetworkGetNetworkIdFromEntity(entity)
+    return player_discard_factory(name..'NetworkIdIn1', transform, player, entity, ...)
   end
   
   RegisterNetEvent('fivework:ExecFunctionResults')
@@ -361,7 +384,7 @@ do
     end
   end
   
-  local function for_one_wait(factory)
+  local function call_result(factory)
     return function(key)
       return function(...)
         return factory(key, transform_subscribe, ...)()
@@ -369,7 +392,7 @@ do
     end
   end
   
-  local function for_one_nowait_or_many(factory)
+  local function pass_result(factory)
     return function(key)
       return function(...)
         return factory(key, transform_subscribe, ...)
@@ -378,12 +401,16 @@ do
   end
   
   local func_patterns = {
-    ['ForPlayerWait$'] = for_one_wait(player_task_factory),
-    ['ForPlayer$'] = for_one_nowait_or_many(player_task_factory),
-    ['ForAll$'] = for_one_nowait_or_many(all_task_factory),
-    ['ForGroup$'] = for_one_nowait_or_many(group_task_factory),
-    ['ForOwnerWait$'] = for_one_wait(owner_task_factory),
-    ['ForOwner$'] = for_one_nowait_or_many(owner_task_factory),
+    ['ForPlayer$'] = pass_result(player_task_factory),
+    ['ForPlayerWait$'] = call_result(player_task_factory),
+    ['ForPlayerDiscard$'] = pass_result(player_discard_factory),
+    ['ForAll$'] = pass_result(all_task_factory),
+    ['ForAllDiscard$'] = pass_result(all_discard_factory),
+    ['ForGroup$'] = pass_result(group_task_factory),
+    ['ForGroupDiscard$'] = pass_result(group_discard_factory),
+    ['ForOwner$'] = pass_result(owner_task_factory),
+    ['ForOwnerWait$'] = call_result(owner_task_factory),
+    ['ForOwnerDiscard$'] = pass_result(owner_discard_factory),
     ['FromPlayer$'] = function(key)
       return function(player, ...)
         local state = get_observed_state(player, key, ...)
