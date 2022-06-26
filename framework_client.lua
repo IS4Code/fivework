@@ -35,6 +35,7 @@ local j_encode = json.encode
 local cor_wrap = coroutine.wrap
 local cor_yield = coroutine.yield
 local FW_Schedule = _ENV.FW_Schedule
+local FW_Pack = _ENV.FW_Pack
 local Vdist = _ENV.Vdist
 
 local TriggerServerEvent = _ENV.TriggerServerEvent
@@ -177,7 +178,12 @@ do
     end
     
     for i = 1, args.n do
-      observe_value(state, args[i], cache)
+      local v = args[i]
+      observe_value(state, v, cache)
+      
+      if type(v) == 'table' then
+        args[i] = FW_Pack(v)
+      end
     end
     
     if next(state) then

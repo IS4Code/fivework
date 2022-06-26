@@ -25,6 +25,7 @@ local j_decode = json.decode
 local cor_wrap = coroutine.wrap
 local cor_yield = coroutine.yield
 local FW_Schedule = _ENV.FW_Schedule
+local FW_Pack = _ENV.FW_Pack
 
 local CancelEvent = _ENV.CancelEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent
@@ -272,6 +273,17 @@ do
     t_insert(queue, {...})
   end
   
+  local function pack_args(...)
+    local args = t_pack(...)
+    for i = 1, args.n do
+      local v = args[i]
+      if type(v) == 'table' then
+        args[i] = FW_Pack(v)
+      end
+    end
+    return args
+  end
+  
   local function player_task_factory(name, transform, stack_level, player, ...)
     local continuations = get_continuations(player)
     local token = newtoken(continuations)
@@ -281,16 +293,16 @@ do
       continuations[token] = nil
       return complete(...)
     end
-    remote_exec_function(player, name, t_pack(...), token)
+    remote_exec_function(player, name, pack_args(...), token)
     return transform(subscribe)
   end
   
   local function player_discard_factory(name, transform, stack_level, player, ...)
-    return remote_exec_function(player, name, t_pack(...))
+    return remote_exec_function(player, name, pack_args(...))
   end
   
   local function group_task_factory(name, transform, stack_level, group, ...)
-    local args = t_pack(...)
+    local args = pack_args(...)
     local results = {}
     local stack = stack_level and FW_StackDump(nil, stack_level)
     for i, v in iterator(group) do
@@ -310,7 +322,7 @@ do
   end
   
   local function group_discard_factory(name, transform, stack_level, group, ...)
-    local args = t_pack(...)
+    local args = pack_args(...)
     for i, v in iterator(group) do
       local player = v or i
       remote_exec_function(player, name, args)

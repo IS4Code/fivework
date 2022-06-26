@@ -653,3 +653,23 @@ do
     return event_cache[func]
   end
 end
+
+function FW_Pack(data)
+  return data
+end
+
+if msgpack then
+  local pack = msgpack.pack
+  
+  if pack then
+    local packed_mt = {
+      __pack = function(self, ...)
+        return self.data, true
+      end
+    }
+    
+    function FW_Pack(data)
+      return setmetatable({data = pack(data)}, packed_mt)
+    end
+  end
+end
