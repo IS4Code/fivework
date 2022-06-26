@@ -30,6 +30,8 @@ local GetGameTimer = _ENV.GetGameTimer
 local Cfx_SetTimeout = Citizen.SetTimeout
 local Cfx_CreateThread = Citizen.CreateThread
 local Cfx_Await = Citizen.Await
+local Cfx_InvokeNative = Citizen.InvokeNative
+local Cfx_ResultAsString = Citizen.ResultAsString()
 
 local function t_unpack(t, i)
   return t_unpack_orig(t, i or 1, t.n)
@@ -52,8 +54,8 @@ do
   local function thread_level(thread)
     return (thread and thread ~= cor_running()) and 0 or 1
   end
-
-  function FW_Traceback(thread, message, level)
+  
+  local function default_traceback(thread, message, level)
     local thread_type = type(thread)
     if thread_type == 'table' and getmetatable(thread) == stackdump_mt then
       return message
@@ -65,6 +67,8 @@ do
     end
     return d_traceback(thread, message, level)
   end
+
+  FW_Traceback = default_traceback
 
   function FW_StackDump(thread, level)
     level = level or thread_level(thread)
@@ -120,6 +124,20 @@ do
     end
     
     return data
+  end
+  local FW_StackDump = _ENV.FW_StackDump
+  
+  function FW_RuntimeTraceback(thread, message, level)
+    local thread_type = type(thread)
+    if (thread_type == 'table' and getmetatable(thread) == stackdump_mt) or thread_type == 'thread' then
+      return default_traceback(thread, message, level)
+    else
+      message, level = thread, message
+    end
+    if message ~= nil and type(message) ~= 'string' then
+      return message
+    end
+    return Cfx_InvokeNative(`FORMAT_STACK_TRACE` & 0xFFFFFFFF, nil, 0, Cfx_ResultAsString)
   end
   
   local string_escape_pattern = "([\"\\\a\b\f\n\r\t\v])"
