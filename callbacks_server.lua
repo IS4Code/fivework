@@ -118,6 +118,22 @@ function UnregisterPlayerSphereCheck(playerid, name)
   FW_UnregisterUpdateForPlayerDiscard(playerid, 'IsEntityWithinRangeSelfPedSkip', name)
 end
 
+function RegisterPlayerGroupAreaCheck(playerid, group, name, ...)
+  FW_RegisterGroupUpdateKeyDefaultForPlayerDiscard(playerid, group, 'IsEntityWithinAreaSelfPedSkip', 1, false, name, ...)
+end
+
+function RegisterPlayerGroupSphereCheck(playerid, group, name, ...)
+  FW_RegisterGroupUpdateKeyDefaultForPlayerDiscard(playerid, group, 'IsEntityWithinRangeSelfPedSkip', 1, false, name, ...)
+end
+
+function UnregisterPlayerGroupAreaCheck(playerid, group, name)
+  FW_UnregisterGroupUpdateForPlayerDiscard(playerid, group, 'IsEntityWithinAreaSelfPedSkip', name)
+end
+
+function UnregisterPlayerGroupSphereCheck(playerid, group, name)
+  FW_UnregisterGroupUpdateForPlayerDiscard(playerid, group, 'IsEntityWithinRangeSelfPedSkip', name)
+end
+
 function CheckPlayerUpdates(playerid, updates)
   for key, value in pairs(updates) do
     if key[1] == 'IsEntityWithinAreaSelfPedSkip' then
