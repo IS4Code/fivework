@@ -1159,8 +1159,29 @@ end
 
 do
   local registered_updates = {}
+  local registered_updates_grouped = {}
+  
   local thread_running = {}
   local default_interval = 0
+  
+  local update_group_func
+  
+  function FW_SetUpdateGroupsFactory(group)
+    update_group_func = group
+  end
+  
+  local function get_grouped(key)
+    if key ~= nil then
+      key = j_encode(key)
+      local group = registered_updates_grouped[key]
+      if not group then
+        group = {}
+        registered_updates_grouped[key] = group
+      end
+      return group
+    end
+    return registered_updates
+  end
   
   local function launch_thread(interval)
     if interval then
@@ -1169,22 +1190,37 @@ do
       end
       thread_running[interval] = true
     end
+    
+    local function process_updates(list, any, updates)
+      for k, info in pairs(list) do
+        if info[1] == interval then
+          any = true
+          local func = script_environment[info[3]]
+          local newvalue = func and func(t_unpack(info, 4))
+          local oldvalue = info[2]
+          if oldvalue ~= newvalue and (oldvalue == oldvalue or newvalue == newvalue) then
+            info[2] = newvalue
+            if not updates then
+              updates = {}
+            end
+            updates[t_pack(t_unpack(info, 3))] = {newvalue, oldvalue}
+          end
+        end
+      end
+      return any, updates
+    end
+    
     Cfx_CreateThread(function()
       while true do
-        local updates
-        local any
-        for k, info in pairs(registered_updates) do
-          if info[1] == interval then
-            any = true
-            local func = script_environment[info[3]]
-            local newvalue = func and func(t_unpack(info, 4))
-            local oldvalue = info[2]
-            if oldvalue ~= newvalue and (oldvalue == oldvalue or newvalue == newvalue) then
-              info[2] = newvalue
-              if not updates then
-                updates = {}
+        local any, updates = process_updates(registered_updates)
+        if update_group_func then
+          for k, v in update_group_func() do
+            local group = v or k
+            if group ~= nil then
+              local grouped = get_grouped(group)
+              if grouped then
+                any, updates = process_updates(grouped, any, updates)
               end
-              updates[t_pack(t_unpack(info, 3))] = {newvalue, oldvalue}
             end
           end
         end
@@ -1201,44 +1237,73 @@ do
   end
   launch_thread(nil)
   
-  function FW_RegisterUpdateKeyDefault(fname, key_length, value, ...)
+  function FW_RegisterGroupUpdateKeyDefault(group, fname, key_length, value, ...)
     local key = {fname, ...}
     if key_length then
       for i = key_length + 2, #key do
         key[i] = nil
       end
     end
-    registered_updates[j_encode(key)] = t_pack(nil, value, fname, ...)
+    get_grouped(group)[j_encode(key)] = t_pack(nil, value, fname, ...)
+  end
+  local FW_RegisterGroupUpdateKeyDefault = _ENV.FW_RegisterGroupUpdateKeyDefault
+  
+  function FW_RegisterUpdateKeyDefault(fname, key_length, value, ...)
+    return FW_RegisterGroupUpdateKeyDefault(nil, fname, key_length, value, ...)
   end
   local FW_RegisterUpdateKeyDefault = _ENV.FW_RegisterUpdateKeyDefault
+  
+  function FW_RegisterGroupUpdateDefault(group, fname, value, ...)
+    return FW_RegisterGroupUpdateKeyDefault(group, fname, nil, value, ...)
+  end
+  local FW_RegisterGroupUpdateDefault = _ENV.FW_GroupRegisterUpdateDefault
   
   function FW_RegisterUpdateDefault(fname, value, ...)
     return FW_RegisterUpdateKeyDefault(fname, nil, value, ...)
   end
   local FW_RegisterUpdateDefault = _ENV.FW_RegisterUpdateDefault
   
-  function FW_RegisterUpdateKey(fname, key_length, ...)
+  function FW_RegisterGroupUpdateKey(group, fname, key_length, ...)
     local func = script_environment[fname]
     local value = func and func(...)
-    return FW_RegisterUpdateKeyDefault(fname, key_length, value, ...)
+    return FW_RegisterUpdateKeyDefault(group, fname, key_length, value, ...)
+  end
+  local FW_RegisterGroupUpdateKey = _ENV.FW_RegisterGroupUpdateKey
+  
+  function FW_RegisterUpdateKey(fname, key_length, ...)
+    return FW_RegisterGroupUpdateKey(nil, fname, key_length, value, ...)
   end
   local FW_RegisterUpdateKey = _ENV.FW_RegisterUpdateKey
+  
+  function FW_RegisterGroupUpdate(group, fname, ...)
+    return FW_RegisterGroupUpdateKey(group, fname, nil, ...)
+  end
   
   function FW_RegisterUpdate(fname, ...)
     return FW_RegisterUpdateKey(fname, nil, ...)
   end
   
-  function FW_UnregisterUpdate(...)
-    registered_updates[j_encode{...}] = nil
+  function FW_UnregisterGroupUpdate(group, ...)
+    get_grouped(group)[j_encode{...}] = nil
   end
+  local FW_UnregisterGroupUpdate = _ENV.FW_UnregisterGroupUpdate
+  
+  function FW_UnregisterUpdate(...)
+    return FW_UnregisterGroupUpdate(nil, ...)
+  end
+  
+  function FW_IsGroupUpdateRegistered(group, ...)
+    return get_grouped(group)[j_encode{...}] ~= nil
+  end
+  local FW_IsGroupUpdateRegistered = _ENV.FW_IsGroupUpdateRegistered
   
   function FW_IsUpdateRegistered(...)
-    return registered_updates[j_encode{...}] ~= nil
+    return FW_IsGroupUpdateRegistered(nil, ...)
   end
   
-  function FW_SetUpdateInterval(newinterval, fname, ...)
+  function FW_SetGroupUpdateInterval(newinterval, group, fname, ...)
     if fname then
-      local info = registered_updates[j_encode{fname, ...}]
+      local info = get_grouped(group)[j_encode{fname, ...}]
       if info then
         info[1] = newinterval
         if newinterval then
@@ -1251,16 +1316,26 @@ do
       return true
     end
   end
+  local FW_SetGroupUpdateInterval = _ENV.FW_SetGroupUpdateInterval
   
-  function FW_GetUpdateInterval(fname, ...)
+  function FW_SetUpdateInterval(newinterval, fname, ...)
+    return FW_SetGroupUpdateInterval(newinterval, nil, fname, ...)
+  end
+  
+  function FW_GetGroupUpdateInterval(group, fname, ...)
     if fname then
-      local info = registered_updates[j_encode{fname, ...}]
+      local info = get_grouped(group)[j_encode{fname, ...}]
       if info then
         return info[1]
       end
     else
       return default_interval
     end
+  end
+  local FW_GetGroupUpdateInterval = _ENV.FW_GetGroupUpdateInterval
+  
+  function FW_GetUpdateInterval(fname, ...)
+    return FW_GetGroupUpdateInterval(group, fname, ...)
   end
 end
 
