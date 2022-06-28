@@ -1248,39 +1248,38 @@ do
   end
   local FW_RegisterGroupUpdateKeyDefault = _ENV.FW_RegisterGroupUpdateKeyDefault
   
-  function FW_RegisterUpdateKeyDefault(fname, key_length, value, ...)
-    return FW_RegisterGroupUpdateKeyDefault(nil, fname, key_length, value, ...)
-  end
-  local FW_RegisterUpdateKeyDefault = _ENV.FW_RegisterUpdateKeyDefault
-  
   function FW_RegisterGroupUpdateDefault(group, fname, value, ...)
     return FW_RegisterGroupUpdateKeyDefault(group, fname, nil, value, ...)
   end
   local FW_RegisterGroupUpdateDefault = _ENV.FW_GroupRegisterUpdateDefault
   
-  function FW_RegisterUpdateDefault(fname, value, ...)
-    return FW_RegisterUpdateKeyDefault(fname, nil, value, ...)
-  end
-  local FW_RegisterUpdateDefault = _ENV.FW_RegisterUpdateDefault
-  
   function FW_RegisterGroupUpdateKey(group, fname, key_length, ...)
     local func = script_environment[fname]
     local value = func and func(...)
-    return FW_RegisterUpdateKeyDefault(group, fname, key_length, value, ...)
+    return FW_RegisterGroupUpdateKeyDefault(group, fname, key_length, value, ...)
   end
   local FW_RegisterGroupUpdateKey = _ENV.FW_RegisterGroupUpdateKey
-  
-  function FW_RegisterUpdateKey(fname, key_length, ...)
-    return FW_RegisterGroupUpdateKey(nil, fname, key_length, value, ...)
-  end
-  local FW_RegisterUpdateKey = _ENV.FW_RegisterUpdateKey
   
   function FW_RegisterGroupUpdate(group, fname, ...)
     return FW_RegisterGroupUpdateKey(group, fname, nil, ...)
   end
+  local FW_RegisterGroupUpdate = _ENV.FW_RegisterGroupUpdate
+  
+  
+  function FW_RegisterUpdateKeyDefault(fname, key_length, value, ...)
+    return FW_RegisterGroupUpdateKeyDefault(nil, fname, key_length, value, ...)
+  end
+    
+  function FW_RegisterUpdateDefault(fname, value, ...)
+    return FW_RegisterGroupUpdateDefault(nil, fname, value, ...)
+  end
+  
+  function FW_RegisterUpdateKey(fname, key_length, ...)
+    return FW_RegisterGroupUpdateKey(nil, fname, key_length, ...)
+  end
   
   function FW_RegisterUpdate(fname, ...)
-    return FW_RegisterUpdateKey(fname, nil, ...)
+    return FW_RegisterGroupUpdate(nil, fname, ...)
   end
   
   function FW_UnregisterGroupUpdate(group, ...)
