@@ -697,10 +697,34 @@ do
     return t == 'table' or t == 'userdata' or t == 'function'
   end
   
+  local validator_cache = setmetatable({}, {
+    __mode = 'k'
+  })
+  
+  local Ensure
+  
+  local function get_validator(func)
+    if func == nil then
+      return nil
+    end
+    if type(func) == 'function' then
+      return func
+    end
+    if func ~= func then
+      return Ensure(func)
+    end
+    local validator = validator_cache[func]
+    if not validator then
+      validator = Ensure(func)
+      validator_cache[func] = validator
+    end
+    return validator
+  end
+  
   local Default = {}
   _ENV.Default = Default
   
-  local function Ensure(default_value, ...)
+  Ensure = function(default_value, ...)
     local value_type
     if select('#', ...) >= 1 then
       value_type = ...
@@ -714,7 +738,7 @@ do
     if value_type == 'table' then
       table_mt = {
         __index = function(self, key)
-          local validator = default_value[key] or default_value[Default]
+          local validator = get_validator(default_value[key] or default_value[Default])
           if validator then
             local result = validator()
             if is_complex(result) and key ~= nil and key == key then
@@ -724,7 +748,7 @@ do
           end
         end,
         __newindex = function(self, key, value)
-          local validator = default_value[key] or default_value[Default]
+          local validator = get_validator(default_value[key] or default_value[Default])
           if validator then
             return rawset(self, key, validator(value))
           end
@@ -753,7 +777,7 @@ do
         
         if value_type == 'table' then
           tested = tested or {}
-          local default_validator = default_value[Default]
+          local default_validator = get_validator(default_value[Default])
           if default_validator then
             for k, v in pairs(tested) do
               if not default_value[k] then
@@ -763,7 +787,7 @@ do
           end
           for k, v in pairs(default_value) do
             if k ~= Default then
-              tested[k] = v(tested[k])
+              tested[k] = get_validator(v)(tested[k])
             end
           end
           if table_mt then
