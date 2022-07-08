@@ -27,6 +27,7 @@ local d_traceback = debug.traceback
 local m_huge = math.huge
 local m_type = math.type
 local m_tointeger = math.tointeger
+local m_modf = math.modf
 
 local GetHashKey = _ENV.GetHashKey
 local GetGameTimer = _ENV.GetGameTimer
@@ -764,7 +765,11 @@ do
           if value_type == 'number' then
             tested = tonumber(tested)
           elseif value_type == 'integer' then
-            tested = m_tointeger(tested)
+            tested = tonumber(tested)
+            if tested then
+              tested = m_modf(tested)
+              tested = m_tointeger(tested)
+            end
           elseif value_type == 'float' then
             tested = tonumber(tested)
             if tested then
