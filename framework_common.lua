@@ -748,9 +748,11 @@ do
           end
         end,
         __newindex = function(self, key, value)
-          local validator = get_validator(default_value[key] or default_value[Default])
-          if validator then
-            return rawset(self, key, validator(value))
+          if value ~= nil then
+            local validator = get_validator(default_value[key] or default_value[Default])
+            if validator then
+              return rawset(self, key, validator(value))
+            end
           end
           return rawset(self, key, value)
         end
