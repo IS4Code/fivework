@@ -15,6 +15,8 @@ local xpcall = _ENV.xpcall
 local ipairs = _ENV.ipairs
 local setmetatable = _ENV.setmetatable
 local type = _ENV.type
+local select = _ENV.select
+local tonumber = _ENV.tonumber
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local t_insert = table.insert
@@ -23,6 +25,8 @@ local d_getinfo = debug.getinfo
 local d_getlocal = debug.getlocal
 local d_traceback = debug.traceback
 local m_huge = math.huge
+local m_type = math.type
+local m_tointeger = math.tointeger
 
 local GetHashKey = _ENV.GetHashKey
 local GetGameTimer = _ENV.GetGameTimer
@@ -582,7 +586,7 @@ function FW_TriggerCommand(name, ...)
   end
 end
 
--- misc
+-- events convenience
 
 local TriggerEvent = _ENV.TriggerEvent
 local TriggerServerEvent = _ENV.TriggerServerEvent
@@ -654,6 +658,8 @@ do
   end
 end
 
+-- packing
+
 function FW_Pack(data)
   return data
 end
@@ -672,4 +678,104 @@ if msgpack then
       return setmetatable({data = pack(data)}, packed_mt)
     end
   end
+end
+
+-- ensure
+
+do
+  local function test_type(value, value_type)
+    local number_type = m_type(value)
+    return (number_type and number_type == value_type) or type(value) == value_type
+  end
+  
+  local function get_type(value)
+    return m_type(value) or type(value)
+  end
+  
+  local function is_complex(value)
+    local t = type(value)
+    return t == 'table' or t == 'userdata' or t == 'function'
+  end
+  
+  local Default = {}
+  _ENV.Default = Default
+  
+  local function Ensure(default_value, ...)
+    local value_type
+    if select('#', ...) >= 1 then
+      value_type = ...
+      if value_type and not test_type(default_value, value_type) then
+        return error("Default value "..tostring(default_value).." does not match expected type "..tostring(value_type).."!")
+      end
+    else
+      value_type = get_type(default_value)
+    end
+    local table_mt
+    if value_type == 'table' then
+      table_mt = {
+        __index = function(self, key)
+          local validator = default_value[key] or default_value[Default]
+          if validator then
+            local result = validator()
+            if is_complex(result) and key ~= nil and key == key then
+              rawset(self, key, result)
+            end
+            return result
+          end
+        end,
+        __newindex = function(self, key, value)
+          local validator = default_value[key] or default_value[Default]
+          if validator then
+            return rawset(self, key, validator(value))
+          end
+          return rawset(self, key, value)
+        end
+      }
+    end
+    return function(tested)
+      if value_type then
+        if tested ~= nil and not test_type(tested, value_type) then
+          if value_type == 'number' then
+            tested = tonumber(tested)
+          elseif value_type == 'integer' then
+            tested = m_tointeger(tested)
+          elseif value_type == 'float' then
+            tested = tonumber(tested)
+            if tested then
+              tested = tested + 0.0
+            end
+          elseif value_type == 'string' then
+            tested = tostring(tested)
+          else
+            tested = nil
+          end
+        end
+        
+        if value_type == 'table' then
+          tested = tested or {}
+          local default_validator = default_value[Default]
+          if default_validator then
+            for k, v in pairs(tested) do
+              if not default_value[k] then
+                tested[k] = default_validator(v)
+              end
+            end
+          end
+          for k, v in pairs(default_value) do
+            if k ~= Default then
+              tested[k] = v(tested[k])
+            end
+          end
+          if table_mt then
+            setmetatable(tested, table_mt)
+          end
+        end
+      end
+      if tested == nil then
+        tested = default_value
+      end
+      return tested
+    end
+  end
+  _ENV.Ensure = Ensure
 end
