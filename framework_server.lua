@@ -444,6 +444,8 @@ do
     end
   }
   
+  FW_FuncPatterns = func_patterns
+  
   local function find_pattern_function(key)
     for pattern, proc in pairs(func_patterns) do
       local i, j = str_find(key, pattern)
