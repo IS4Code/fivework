@@ -26,7 +26,6 @@ local j_decode = json.decode
 local cor_wrap = coroutine.wrap
 local cor_yield = coroutine.yield
 local FW_Schedule = _ENV.FW_Schedule
-local FW_Pack = _ENV.FW_Pack
 
 local CancelEvent = _ENV.CancelEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent

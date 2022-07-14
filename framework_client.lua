@@ -35,7 +35,6 @@ local j_encode = json.encode
 local cor_wrap = coroutine.wrap
 local cor_yield = coroutine.yield
 local FW_Schedule = _ENV.FW_Schedule
-local FW_Pack = _ENV.FW_Pack
 local Vdist = _ENV.Vdist
 
 local TriggerServerEvent = _ENV.TriggerServerEvent
