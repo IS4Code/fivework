@@ -430,10 +430,16 @@ do
     end
   end
   
+  local global_timeout
+  
+  function FW_SetWaitTimeout(timeout)
+    global_timeout = timeout
+  end
+  
   local function call_result(factory)
     return function(key)
       return function(...)
-        return factory(key, transform_subscribe, nil, ...)()
+        return factory(key, transform_subscribe, nil, ...)(global_timeout)
       end
     end
   end
@@ -441,7 +447,7 @@ do
   local function try_call_result(factory)
     return function(key)
       return function(...)
-        return pcall(factory(key, transform_subscribe, nil, ...))
+        return pcall(factory(key, transform_subscribe, nil, ...), global_timeout)
       end
     end
   end
