@@ -20,6 +20,7 @@ local ipairs = _ENV.ipairs
 local pairs = _ENV.pairs
 local tostring = _ENV.tostring
 local tonumber = _ENV.tonumber
+local setmetatable = _ENV.setmetatable
 local j_encode = json.encode
 local j_decode = json.decode
 local cor_wrap = coroutine.wrap
@@ -301,9 +302,25 @@ do
     return remote_exec_function(player, name, pack_args(...))
   end
   
+  local group_table_mt = {
+    __index = function(self, key)
+      if type(key) == 'string' then
+        local as_num = tonumber(key)
+        if as_num then
+          return rawget(self, as_num)
+        end
+      else
+        local as_str = tostring(key)
+        if as_str then
+          return rawget(self, as_str)
+        end
+      end
+    end
+  }
+  
   local function group_task_factory(name, transform, stack_level, group, ...)
     local args = pack_args(...)
-    local results = {}
+    local results = setmetatable({}, group_table_mt)
     local stack = stack_level and FW_StackDump(nil, stack_level)
     for i, v in iterator(group) do
       local player = v or i
