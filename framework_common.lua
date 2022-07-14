@@ -729,14 +729,14 @@ do
     local value_type
     if select('#', ...) >= 1 then
       value_type = ...
-      if value_type and not test_type(default_value, value_type) then
+      if default_value ~= nil and value_type and not test_type(default_value, value_type) then
         return error("Default value "..tostring(default_value).." does not match expected type "..tostring(value_type).."!")
       end
     else
       value_type = get_type(default_value)
     end
     local table_mt
-    if value_type == 'table' then
+    if default_value and value_type == 'table' then
       table_mt = {
         __index = function(self, key)
           local validator = get_validator(default_value[key] or default_value[Default])
@@ -784,17 +784,22 @@ do
         
         if value_type == 'table' then
           tested = tested or {}
-          local default_validator = get_validator(default_value[Default])
-          if default_validator then
-            for k, v in pairs(tested) do
-              if not default_value[k] then
-                tested[k] = default_validator(v)
+          if default_value then
+            local default_validator = get_validator(default_value[Default])
+            if default_validator then
+              for k, v in pairs(tested) do
+                if not default_value[k] then
+                  tested[k] = default_validator(v)
+                end
               end
             end
-          end
-          for k, v in pairs(default_value) do
-            if k ~= Default then
-              tested[k] = get_validator(v)(tested[k])
+            for k, v in pairs(default_value) do
+              if k ~= Default then
+                local value = tested[k]
+                if value ~= nil then
+                  tested[k] = get_validator(v)(value)
+                end
+              end
             end
           end
           if table_mt then
