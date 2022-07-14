@@ -408,8 +408,25 @@ do
     end
   end)
   
+  local function timeout_scheduler(callback, timeout, scheduler)
+    local fired
+    local function finished(...)
+      if not fired then
+        fired = true
+        return callback(...)
+      end
+    end
+    Cfx_SetTimeout(timeout, function()
+      return finished(false, "timeout "..tostring(tostring).." hit")
+    end)
+    return scheduler(finished)
+  end
+  
   local function transform_subscribe(subscribe)
-    return function()
+    return function(timeout)
+      if timeout then
+        return error_or_return(FW_Schedule(timeout_scheduler, timeout, subscribe))
+      end
       return error_or_return(FW_Schedule(subscribe))
     end
   end
@@ -430,6 +447,22 @@ do
     end
   end
   
+  local function timeout_call_result(factory)
+    return function(key)
+      return function(arg1, timeout, ...)
+        return factory(key, transform_subscribe, nil, arg1, ...)(timeout)
+      end
+    end
+  end
+  
+  local function try_timeout_call_result(factory)
+    return function(key)
+      return function(arg1, timeout, ...)
+        return pcall(factory(key, transform_subscribe, nil, arg1, ...), timeout)
+      end
+    end
+  end
+  
   local function pass_result(factory)
     return function(key)
       return function(...)
@@ -442,6 +475,8 @@ do
     ['ForPlayer$'] = pass_result(player_task_factory),
     ['ForPlayerWait$'] = call_result(player_task_factory),
     ['ForPlayerTryWait$'] = try_call_result(player_task_factory),
+    ['ForPlayerTimeout$'] = timeout_call_result(player_task_factory),
+    ['ForPlayerTryTimeout$'] = try_timeout_call_result(player_task_factory),
     ['ForPlayerDiscard$'] = pass_result(player_discard_factory),
     ['ForAll$'] = pass_result(all_task_factory),
     ['ForAllDiscard$'] = pass_result(all_discard_factory),
@@ -450,6 +485,8 @@ do
     ['ForOwner$'] = pass_result(owner_task_factory),
     ['ForOwnerWait$'] = call_result(owner_task_factory),
     ['ForOwnerTryWait$'] = try_call_result(owner_task_factory),
+    ['ForOwnerTimeout$'] = timeout_call_result(owner_task_factory),
+    ['ForOwnerTryTimeout$'] = try_timeout_call_result(owner_task_factory),
     ['ForOwnerDiscard$'] = pass_result(owner_discard_factory),
     ['FromPlayer$'] = function(key)
       return function(player, ...)
