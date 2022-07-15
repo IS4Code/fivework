@@ -166,13 +166,17 @@ do
     
     for _, record in ipairs(data) do
       local name, args = t_unpack(record)
-      retrieve_observed_state(source, args)
-      
-      local handler = net_callback_handlers[name]
-      if handler then
-        local ok, msg = xpcall(handler, FW_Traceback, source, t_unpack(args))
-        if not ok then
-          FW_ErrorLog("Error in callback "..name..":\n", msg)
+      if not callback_info[name] then
+        FW_TriggerCallback('OnUnregisteredNetCallback', source, name, args)
+      else
+        retrieve_observed_state(source, args)
+        
+        local handler = net_callback_handlers[name]
+        if handler then
+          local ok, msg = xpcall(handler, FW_Traceback, source, t_unpack(args))
+          if not ok then
+            FW_ErrorLog("Error in callback "..name..":\n", msg)
+          end
         end
       end
     end

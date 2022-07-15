@@ -33,6 +33,7 @@ FW_RegisterPlainCallback('OnPlayerReceivedCommand')
 FW_RegisterPlainCallback('OnPlayerPerformedCommand')
 FW_RegisterPlainCallback('OnScriptInit')
 FW_RegisterPlainCallback('OnScriptExit')
+FW_RegisterPlainCallback('OnUnregisteredNetCallback')
 
 AddEventHandler('onResourceStart', function(resource)
   if resource == GetCurrentResourceName() then
