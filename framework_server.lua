@@ -751,7 +751,7 @@ do
   local LoadResourceFile = _ENV.LoadResourceFile
   
   function SaveResourceData(name, file, ...)
-    data = j_encode(transform_table(t_pack(...)))
+    local data = j_encode(transform_table(t_pack(...)))
     if not data or data == '' then
       return error('invalid data returned from json.encode')
     end
