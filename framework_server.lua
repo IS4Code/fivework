@@ -522,6 +522,22 @@ do
     end
   end
   
+  local registered_globals = {source = true}
+  local warn_on_global_access
+  
+  function FW_GlobalInitializationDone()
+    for k, v in pairs(_ENV) do
+      if type(k) == 'string' then
+        registered_globals[k] = true
+      end
+    end
+    warn_on_global_access = true
+  end
+  
+  function FW_DefaultGlobal(declared)
+    return nil
+  end
+  
   setmetatable(_ENV, {
     __index = function(self, key)
       if type(key) ~= 'string' then return nil end
@@ -530,6 +546,20 @@ do
         rawset(self, key, result)
         return result
       end
+      if warn_on_global_access and not registered_globals[key] then
+        FW_WarningLog("Global '"..key.."' not declared before retrieval, at:\n", FW_Traceback(nil, 2))
+        return FW_DefaultGlobal(false)
+      end
+      return FW_DefaultGlobal(true)
+    end,
+    __newindex = function(self, key, value)
+      if type(key) == 'string' then
+        if warn_on_global_access and not registered_globals[key] then
+          FW_WarningLog("Global '"..key.."' not declared before assignment to "..tostring(value)..", at:\n", FW_Traceback(nil, 2))
+        end
+        registered_globals[key] = true
+      end
+      return rawset(self, key, value)
     end
   })
 end
