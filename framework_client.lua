@@ -19,6 +19,8 @@ local m_type = math.type
 local m_huge = math.huge
 local m_min = math.min
 local m_max = math.max
+local m_maxinteger = math.maxinteger
+local m_mininteger = math.mininteger
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local t_concat = table.concat
@@ -196,6 +198,17 @@ do
       validator = assert(script_environment[validator], 'variable not found')
     end
     observers[j_encode{name, ...}] = t_pack(name, validator, ...)
+  end
+  
+  local messageId = m_mininteger
+  function GetLastMessageId()
+    local value = messageId
+    if value >= m_maxinteger then
+      messageId = m_mininteger
+    else
+      messageId = messageId + 1
+    end
+    return value
   end
   
   function FW_UnregisterObserver(name, ...)
