@@ -401,13 +401,13 @@ do
     local source = _ENV.source
     local continuations = player_continuations[source]
     if continuations then
+      player_continuations[source] = nil
       for token, handler in pairs(continuations) do
         local ok, msg = xpcall(handler, FW_Traceback, error_dropped, "player dropped: "..tostring(reason))
         if not ok then
           FW_ErrorLog("Error in asynchronous continuation:\n", msg)
         end
       end
-      player_continuations[source] = nil
     end
   end)
   
