@@ -87,6 +87,18 @@ do
       return GetGameTimer() - state[1]
     end
   end
+  
+  AddEventHandler('playerDropped', function()
+    local source = _ENV.source
+    local stored = observed_state[source]
+    if stored then
+      Cfx_SetTimeout(0, function()
+        if observed_state[source] == stored then
+          observed_state[source] = nil
+        end
+      end)
+    end
+  end)
 end
 
 -- callbacks
