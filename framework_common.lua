@@ -483,21 +483,34 @@ end
 
 -- events
 
-local registered_events = {}
-
-public = setmetatable({}, {
-  __newindex = function(self, key, value)
-    if not registered_events[key] then
-      registered_events[key] = FW_CreateCallbackHandler(key, function(...)
-        local func = self[key]
-        if func then
-          return immediate(FW_Async(func, ...))
-        end
-      end)
+do
+  local callback_info = {}
+  FW_CallbackHandlers = callback_info
+  
+  local function create_handler(name, handler)
+    local registerer = callback_info[name]
+    if not registerer then
+      return error("Callback '"..tostring(name).."' was not defined!")
     end
-    return rawset(self, key, value)
+    return registerer(handler)
   end
-})
+  
+  local registered_events = {}
+  
+  public = setmetatable({}, {
+    __newindex = function(self, key, value)
+      if not registered_events[key] then
+        registered_events[key] = create_handler(key, function(...)
+          local func = self[key]
+          if func then
+            return immediate(FW_Async(func, ...))
+          end
+        end)
+      end
+      return rawset(self, key, value)
+    end
+  })
+end
 local public = _ENV.public
 
 function FW_TriggerCallback(name, ...)

@@ -219,15 +219,7 @@ end
 -- callbacks
 
 do
-  local callback_info = {}
-  
-  function FW_CreateCallbackHandler(name, handler)
-    local registerer = callback_info[name]
-    if not registerer then
-      return error("Callback '"..tostring(name).."' was not defined!")
-    end
-    return registerer(handler)
-  end
+  local callback_info = FW_CallbackHandlers
   
   local function warn_if_registered(name)
     if callback_info[name] then
