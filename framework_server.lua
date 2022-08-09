@@ -26,6 +26,7 @@ local j_decode = json.decode
 local cor_wrap = coroutine.wrap
 local cor_yield = coroutine.yield
 local FW_Schedule = _ENV.FW_Schedule
+local Entity = _ENV.Entity
 
 local CancelEvent = _ENV.CancelEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent
@@ -484,6 +485,31 @@ do
     end
   end
   
+  local init_key = 'fw:init'
+  
+  local function add_entity_state(entity, key, fname, ...)
+    local state = Entity(entity).state
+    local init = state[init_key]
+    local max_clock = -1
+    if not init then
+      init = {}
+    else
+      for k, v in pairs(init) do
+        local clock = v[2]
+        if clock > max_clock then
+          max_clock = clock
+        end
+      end
+    end
+    local data = {fname, max_clock + 1, t_pack(nil, ...)}
+    if not key then
+      t_insert(init, data)
+    else
+      init[key] = data
+    end
+    state[init_key] = init
+  end
+  
   local func_patterns = {
     ['ForPlayer$'] = pass_result(player_task_factory),
     ['ForPlayerWait$'] = call_result(player_task_factory),
@@ -501,6 +527,24 @@ do
     ['ForOwnerTimeout$'] = timeout_call_result(owner_task_factory),
     ['ForOwnerTryTimeout$'] = try_timeout_call_result(owner_task_factory),
     ['ForOwnerDiscard$'] = pass_result(owner_discard_factory),
+    ['ForEntity$'] = function(fname)
+      return function(entity, ...)
+        return add_entity_state(entity, j_encode{fname}, fname, ...)
+      end
+    end,
+    ['ForEntityKey$'] = function(fname)
+      return function(entity, key_length, ...)
+        if not key_length then
+          return add_entity_state(entity, nil, fname, ...)
+        else
+          local key_parts = {fname, ...}
+          for i = key_length + 2, #key_parts do
+            key_parts[i] = nil
+          end
+          return add_entity_state(entity, j_encode(key_parts), fname, ...)
+        end
+      end
+    end,
     ['FromPlayer$'] = function(key)
       return function(player, ...)
         local state = get_observed_state(player, key, ...)

@@ -25,6 +25,7 @@ local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local t_concat = table.concat
 local t_insert = table.insert
+local t_sort = table.sort
 local str_find = string.find
 local str_sub = string.sub
 local str_gsub = string.gsub
@@ -54,6 +55,9 @@ local CancelEvent = _ENV.CancelEvent
 local GetHashKey = _ENV.GetHashKey
 local PlayerId = _ENV.PlayerId
 local PlayerPedId = _ENV.PlayerPedId
+local DecorExistOn = _ENV.DecorExistOn
+local DecorGetInt = _ENV.DecorGetInt
+local DecorSetInt = _ENV.DecorSetInt
 
 do
   local Cfx_Wait_Orig = Cfx_Wait
@@ -781,6 +785,70 @@ do
     for i, v in ipairs(queue) do
       local name, args, token = t_unpack(v)
       FW_Async(remote_call, name, token, args)
+    end
+  end)
+  
+  local function get_entity_from_bag(bagName)
+    local id, pos = bagName:gsub('^localEntity:', '')
+    if pos == 0 then
+      id, pos = bagName:gsub('^entity:', '')
+      if pos == 0 then
+        id = nil
+      else
+        id = tonumber(id)
+        if id and NetworkDoesNetworkIdExist(id) then
+          id = NetworkGetEntityFromNetworkId(id)
+        else
+          id = nil
+        end
+      end
+    else
+      id = tonumber(id)
+    end
+    if id and not DoesEntityExist(id) then
+      return nil
+    end
+    return id
+  end
+  
+  local function clock_comparer(v1, v2)
+    return v1[2] < v2[2]
+  end
+  
+  local init_key = 'fw:init'
+  local init_clock_key = 'fw:init_clock'
+  
+  AddStateBagChangeHandler(init_key, nil, function(bagName, key, value, source)
+    if source == 0 and key == init_key then
+      local id = get_entity_from_bag(bagName)
+      local time1, time2 = 0, 1
+      while not id do
+        time1, time2 = time2, time1 + time2
+        if time2 >= m_maxinteger then
+          return
+        end
+        Cfx_Wait(time2)
+        id = get_entity_from_bag(bagName)
+      end
+      local start = 0
+      if DecorExistOn(id, init_clock_key) then
+        start = DecorGetInt(id, init_clock_key) + 1
+      end
+      local calls = {}
+      for k, v in pairs(value) do
+        if v[2] >= start then
+          t_insert(calls, v)
+        end
+      end
+      if #calls > 0 then
+        t_sort(calls, clock_comparer)
+        DecorSetInt(id, init_clock_key, calls[#calls][2])
+        for i, v in ipairs(calls) do
+          local name, clock, args = t_unpack(v)
+          args[1] = id
+          FW_Async(remote_call, name, token, args)
+        end
+      end
     end
   end)
 end  
