@@ -1182,6 +1182,8 @@ do
     update_group_func = group
   end
   
+  local last_groups = {}
+  
   local function get_grouped(key)
     if key ~= nil then
       key = j_encode(key)
@@ -1226,13 +1228,21 @@ do
       while true do
         local any, updates = process_updates(registered_updates)
         if update_group_func then
+          local groups_to_check = last_groups
+          last_groups = {}
+          
           for k, v in update_group_func() do
             local group = v or k
-            if group ~= nil then
-              local grouped = get_grouped(group)
-              if grouped then
-                any, updates = process_updates(grouped, any, updates)
-              end
+            if group ~= nil and group == group then
+              last_groups[group] = true
+              groups_to_check[group] = true
+            end
+          end
+          
+          for group in pairs(groups_to_check) do
+            local grouped = get_grouped(group)
+            if grouped then
+              any, updates = process_updates(grouped, any, updates)
             end
           end
         end
