@@ -487,6 +487,18 @@ do
   local callback_info = {}
   FW_CallbackHandlers = callback_info
   
+  local AddStateBagChangeHandler = _ENV.AddStateBagChangeHandler
+  
+  function callback_info.OnStateBagChange(handler)
+    AddStateBagChangeHandler(nil, nil, function(bagName, key, value, source, ...)
+      local bagType, id = bagName:match("^([^:]*):(.*)")
+      if id then
+        id = tonumber(id) or id
+      end
+      return handler(source, bagType or bagName, id, key, value, ...)
+    end)
+  end
+  
   local function create_handler(name, handler)
     local registerer = callback_info[name]
     if not registerer then
@@ -494,6 +506,7 @@ do
     end
     return registerer(handler)
   end
+  FW_CreateCallbackHandler = create_handler
   
   local registered_events = {}
   
