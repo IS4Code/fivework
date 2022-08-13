@@ -815,8 +815,9 @@ do
     return v1[2] < v2[2]
   end
   
-  local init_key = 'fw:init'
-  local init_clock_key = 'fw:init_clock'
+  local init_key = 'fw:ei'
+  local init_clock_key = 'fw:ic'
+  local init_set_key_prefix = 'fw:is'
   
   AddStateBagChangeHandler(init_key, nil, function(bagName, key, value, source)
     if source == 0 and key == init_key then
@@ -834,19 +835,34 @@ do
       if DecorExistOn(id, init_clock_key) then
         start = DecorGetInt(id, init_clock_key) + 1
       end
+      local keys = {}
       local calls = {}
       for k, v in pairs(value) do
         if v[2] >= start then
           t_insert(calls, v)
+          keys[v] = k
         end
       end
       if #calls > 0 then
         t_sort(calls, clock_comparer)
         DecorSetInt(id, init_clock_key, calls[#calls][2])
         for i, v in ipairs(calls) do
-          local name, clock, args = t_unpack(v)
-          args[1] = id
-          FW_Async(remote_call, name, token, args)
+          local name, clock, once, args = t_unpack(v)
+          
+          if once then
+            local state = Entity(id).state
+            local state_key = init_set_key_prefix..keys[v]
+            local set_clock = state[state_key]
+            if not set_clock or set_clock < clock then
+              state[state_key] = clock
+              once = false
+            end
+          end
+          
+          if not once then
+            args[1] = id
+            FW_Async(remote_call, name, token, args)
+          end
         end
       end
     end

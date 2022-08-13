@@ -485,9 +485,9 @@ do
     end
   end
   
-  local init_key = 'fw:init'
+  local init_key = 'fw:ei'
   
-  local function add_entity_state(entity, key, fname, ...)
+  local function add_entity_state(entity, key, fname, once, ...)
     local state = Entity(entity).state
     local init = state[init_key]
     local max_clock = -1
@@ -501,13 +501,25 @@ do
         end
       end
     end
-    local data = {fname, max_clock + 1, t_pack(nil, ...)}
+    local data = {fname, max_clock + 1, once, t_pack(nil, ...)}
     if not key then
       t_insert(init, data)
     else
       init[key] = data
     end
     state[init_key] = init
+  end
+  
+  local function set_entity_state(fname, entity, key_length, once, ...)
+    if not key_length then
+      return add_entity_state(entity, nil, fname, once, ...)
+    else
+      local key_parts = {fname, ...}
+      for i = key_length + 2, #key_parts do
+        key_parts[i] = nil
+      end
+      return add_entity_state(entity, j_encode(key_parts), fname, once, ...)
+    end
   end
   
   local func_patterns = {
@@ -529,20 +541,22 @@ do
     ['ForOwnerDiscard$'] = pass_result(owner_discard_factory),
     ['ForEntity$'] = function(fname)
       return function(entity, ...)
-        return add_entity_state(entity, j_encode{fname}, fname, ...)
+        return set_entity_state(fname, entity, 0, false, ...)
+      end
+    end,
+    ['ForEntityOnce$'] = function(fname)
+      return function(entity, ...)
+        return set_entity_state(fname, entity, 0, true, ...)
       end
     end,
     ['ForEntityKey$'] = function(fname)
       return function(entity, key_length, ...)
-        if not key_length then
-          return add_entity_state(entity, nil, fname, ...)
-        else
-          local key_parts = {fname, ...}
-          for i = key_length + 2, #key_parts do
-            key_parts[i] = nil
-          end
-          return add_entity_state(entity, j_encode(key_parts), fname, ...)
-        end
+        return set_entity_state(fname, entity, key_length, false, ...)
+      end
+    end,
+    ['ForEntityOnceKey$'] = function(fname)
+      return function(entity, key_length, ...)
+        return set_entity_state(fname, entity, key_length, true, ...)
       end
     end,
     ['FromPlayer$'] = function(key)
