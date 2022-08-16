@@ -633,7 +633,7 @@ do
       if spawning_time then
         if GetGameTimer() - spawning_time > 3000 then
           spawning_time = nil
-          bad_players[spawning_player] = 4
+          bad_players[spawning_player] = 6
           spawning_player = nil
           token_spawners[token] = nil
           token = nil
@@ -697,7 +697,7 @@ do
   
   Cfx_CreateThread(function()
     while true do
-      Cfx_Wait(2000)
+      Cfx_Wait(500)
       for k, v in pairs(active_spawners) do
         if v then
           FW_TryCall(k.update)
