@@ -504,6 +504,10 @@ do
     __mode = 'v'
   })
   
+  function FW_GetEntitySpawner(entity)
+    return entity_spawners[entity]
+  end
+  
   function FW_EligibleSpawnerPlayers(x, y, z, bucket)
     return AllPlayers()
   end
