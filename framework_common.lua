@@ -28,6 +28,7 @@ local m_huge = math.huge
 local m_type = math.type
 local m_tointeger = math.tointeger
 local m_modf = math.modf
+local m_maxinteger = math.maxinteger
 
 local GetHashKey = _ENV.GetHashKey
 local GetGameTimer = _ENV.GetGameTimer
@@ -37,6 +38,7 @@ local Cfx_CreateThread = Citizen.CreateThread
 local Cfx_Await = Citizen.Await
 local Cfx_InvokeNative = Citizen.InvokeNative
 local Cfx_ResultAsString = Citizen.ResultAsString()
+local Cfx_Wait = Citizen.Wait
 
 local function t_unpack(t, i)
   return t_unpack_orig(t, i or 1, t.n)
@@ -481,7 +483,7 @@ function FW_Awaited(func, ...)
   return Cfx_Await(make_promise(func, ...))
 end
 
--- events
+-- callbacks
 
 do
   local callback_info = {}
@@ -840,4 +842,47 @@ do
     end
   end
   _ENV.Ensure = Ensure
+end
+
+-- shared
+
+do
+  local NetworkGetEntityFromNetworkId = _ENV.NetworkGetEntityFromNetworkId
+  local NetworkDoesNetworkIdExist = _ENV.NetworkDoesNetworkIdExist or function() return true end
+  local DoesEntityExist = _ENV.DoesEntityExist
+
+  function FW_GetEntityFromBag(bagName)
+    local id, pos = bagName:gsub('^localEntity:', '')
+    if pos == 0 then
+      id, pos = bagName:gsub('^entity:', '')
+      if pos == 0 then
+        id = nil
+      else
+        id = tonumber(id)
+        if id and NetworkDoesNetworkIdExist(id) then
+          id = NetworkGetEntityFromNetworkId(id)
+        else
+          id = nil
+        end
+      end
+    else
+      id = tonumber(id)
+    end
+    if id and not DoesEntityExist(id) then
+      return nil
+    end
+    return id
+  end
+  
+  function FW_CheckTimeout(time1, time2, max)
+    if not time1 then
+      return 0, 1
+    end
+    time1, time2 = time2, time1 + time2
+    if time2 >= (max or m_maxinteger) then
+      return
+    end
+    Cfx_Wait(time2)
+    return time1, time2
+  end
 end

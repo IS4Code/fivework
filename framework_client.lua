@@ -44,6 +44,7 @@ local TriggerServerEvent = _ENV.TriggerServerEvent
 local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
 local NetworkGetEntityFromNetworkId = _ENV.NetworkGetEntityFromNetworkId
 local NetworkDoesNetworkIdExist = _ENV.NetworkDoesNetworkIdExist
+local NetworkGetEntityIsNetworked = _ENV.NetworkGetEntityIsNetworked
 local DoesEntityExist = _ENV.DoesEntityExist
 local GetGameTimer = _ENV.GetGameTimer
 local GetTimeDifference = _ENV.GetTimeDifference
@@ -58,6 +59,8 @@ local PlayerPedId = _ENV.PlayerPedId
 local DecorExistOn = _ENV.DecorExistOn
 local DecorGetInt = _ENV.DecorGetInt
 local DecorSetInt = _ENV.DecorSetInt
+local DeleteEntity = _ENV.DeleteEntity
+local Entity = _ENV.Entity
 
 do
   local Cfx_Wait_Orig = Cfx_Wait
@@ -758,8 +761,9 @@ do
   
   local function process_call(token, status, ...)
     if token or not status then
-      return t_insert(results_queue, {status, observe_state(t_pack(...)), token})
+      t_insert(results_queue, {status, observe_state(t_pack(...)), token})
     end
+    return status, ...
   end
   
   Cfx_CreateThread(function()
@@ -788,28 +792,8 @@ do
     end
   end)
   
-  local function get_entity_from_bag(bagName)
-    local id, pos = bagName:gsub('^localEntity:', '')
-    if pos == 0 then
-      id, pos = bagName:gsub('^entity:', '')
-      if pos == 0 then
-        id = nil
-      else
-        id = tonumber(id)
-        if id and NetworkDoesNetworkIdExist(id) then
-          id = NetworkGetEntityFromNetworkId(id)
-        else
-          id = nil
-        end
-      end
-    else
-      id = tonumber(id)
-    end
-    if id and not DoesEntityExist(id) then
-      return nil
-    end
-    return id
-  end
+  local get_entity_from_bag = FW_GetEntityFromBag
+  local check_timeout = FW_CheckTimeout
   
   local function clock_comparer(v1, v2)
     return v1[2] < v2[2]
@@ -822,13 +806,12 @@ do
   AddStateBagChangeHandler(init_key, nil, function(bagName, key, value, source)
     if source == 0 and key == init_key then
       local id = get_entity_from_bag(bagName)
-      local time1, time2 = 0, 1
+      local a, b = check_timeout()
       while not id do
-        time1, time2 = time2, time1 + time2
-        if time2 >= m_maxinteger then
+        a, b = check_timeout(a, b)
+        if not a then
           return
         end
-        Cfx_Wait(time2)
         id = get_entity_from_bag(bagName)
       end
       local start = 0
@@ -861,11 +844,28 @@ do
           
           if not once then
             args[1] = id
-            FW_Async(remote_call, name, token, args)
+            FW_Async(remote_call, name, nil, args)
           end
         end
       end
     end
+  end)
+  
+  RegisterNetEvent('fivework:SpawnEntity')
+  AddEventHandler('fivework:SpawnEntity', function(token, fname, spawn_args)    FW_Async(function()
+      LoadModel(spawn_args[1])
+      local ok, id = remote_call(fname, nil, spawn_args)
+      if ok and id and DoesEntityExist(id) then
+        local a, b = check_timeout()
+        while not NetworkGetEntityIsNetworked(id) do
+          a, b = check_timeout(a, b, 1000)
+          if not a then
+            return DeleteEntity(id)
+          end
+        end
+        return TriggerServerEvent('fivework:EntitySpawned', NetworkGetNetworkIdFromEntity(id), token)
+      end
+    end)
   end)
 end  
 

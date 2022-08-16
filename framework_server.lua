@@ -27,12 +27,19 @@ local cor_wrap = coroutine.wrap
 local cor_yield = coroutine.yield
 local FW_Schedule = _ENV.FW_Schedule
 local Entity = _ENV.Entity
+local vec3 = _ENV.vec3
 
 local CancelEvent = _ENV.CancelEvent
 local TriggerClientEvent = _ENV.TriggerClientEvent
 local GetGameTimer = _ENV.GetGameTimer
+local Entity = _ENV.Entity
 
 local Cfx_SetTimeout = Citizen.SetTimeout
+local Cfx_Wait = Citizen.Wait
+local Cfx_CreateThread = Citizen.CreateThread
+
+local FW_Async = _ENV.FW_Async
+local FW_TryCall = _ENV.FW_TryCall
 
 local function t_unpack(t, i)
   return t_unpack_orig(t, i or 1, t.n)
@@ -204,6 +211,22 @@ local AllPlayers = _ENV.AllPlayers
 
 local NetworkGetEntityOwner = _ENV.NetworkGetEntityOwner
 local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
+  
+local function newid()
+  local chars = {}
+  for i = 1, 32 do
+    chars[i] = m_random(33, 126)
+  end
+  return str_char(t_unpack(chars))
+end
+
+local function newtoken(continuations)
+  local token
+  repeat
+    token = newid()
+  until not continuations[token]
+  return token
+end
 
 do
   local player_continuations = {}
@@ -215,22 +238,6 @@ do
       player_continuations[player] = continuations
     end
     return continuations
-  end
-  
-  local function newid()
-    local chars = {}
-    for i = 1, 32 do
-      chars[i] = m_random(33, 126)
-    end
-    return str_char(t_unpack(chars))
-  end
-  
-  local function newtoken(continuations)
-    local token
-    repeat
-      token = newid()
-    until not continuations[token]
-    return token
   end
   
   local error_dropped = {}
@@ -487,8 +494,224 @@ do
   
   local init_key = 'fw:ei'
   
-  local function add_entity_state(entity, key, fname, once, ...)
-    local state = Entity(entity).state
+  local active_spawners = {}
+  
+  local token_spawners = setmetatable({}, {
+    __mode = 'v'
+  })
+  
+  local entity_spawners = setmetatable({}, {
+    __mode = 'v'
+  })
+  
+  function FW_EligibleSpawnerPlayers(x, y, z, bucket)
+    return AllPlayers()
+  end
+  
+  local DoesEntityExist = _ENV.DoesEntityExist
+  local SetEntityRoutingBucket = _ENV.SetEntityRoutingBucket
+  local GetPlayerRoutingBucket = _ENV.GetPlayerRoutingBucket
+  local GetPlayerPed = _ENV.GetPlayerPed
+  local DeleteEntity = _ENV.DeleteEntity
+  
+  AddEventHandler('entityRemoved', function(entity)
+    local data = entity_spawners[entity]
+    if data then
+      data.removed()
+    end
+  end)
+  
+  local function create_spawner(fname, model, x, y, z, bucket, ...)
+    local data = {}
+    active_spawners[data] = true
+    local spawn_args = t_pack(model, x, y, z, ...)
+    local entity
+    local is_deleting
+    
+    function data.removed()
+      data.set_entity(nil)
+      if is_deleting then
+        active_spawners[data] = nil
+      end
+    end
+    
+    function data.delete()
+      is_deleting = true
+      if entity then
+        if DoesEntityExist(entity) then
+          active_spawners[data] = false
+          DeleteEntity(entity)
+          return
+        else
+          data.set_entity(nil)
+        end
+      end
+      active_spawners[data] = nil
+    end
+    
+    local state = setmetatable({}, {
+      __newindex = function(self, key, value)
+        if entity and DoesEntityExist(entity) then
+          Entity(entity).state[key] = value
+        end
+        return rawset(self, key, value)
+      end
+    })
+    data.state = state
+    
+    local bad_players = {}
+    
+    function data.set_entity(id)
+      if entity then
+        entity_spawners[entity] = nil
+      end
+      
+      data.entity = id
+      entity = id
+      bad_players = {}
+      
+      if id then
+        entity_spawners[id] = data
+        if DoesEntityExist(id) then
+          Entity(id).state[init_key] = state[init_key]
+        end
+      end
+    end
+    
+    function data.set_bucket(newbucket)
+      bucket = newbucket
+      if entity and DoesEntityExist(entity) then
+        SetEntityRoutingBucket(entity, newbucket)
+      end
+    end
+    
+    function data.get_bucket()
+      return bucket
+    end
+    
+    local spawning_time
+    local spawning_player
+    local token
+    
+    function data.spawned(id)
+      token_spawners[token] = nil
+      token = nil
+      spawning_time = nil
+      spawning_player = nil
+      data.set_entity(id)
+    end
+    
+    function data.update()
+      if is_deleting then
+        return
+      end
+      if entity and not DoesEntityExist(entity) then
+        entity = nil
+      end
+      if spawning_time then
+        if GetGameTimer() - spawning_time > 3000 then
+          spawning_time = nil
+          bad_players[spawning_player] = 4
+          spawning_player = nil
+          token_spawners[token] = nil
+          token = nil
+        else
+          return
+        end
+      end
+      if not entity then
+        x, y, z = t_unpack(spawn_args, 2)
+        local pos = vec3(x, y, z)
+        local min_dist = m_huge
+        local min_player
+        
+        for player in FW_EligibleSpawnerPlayers(x, y, z, bucket) do
+          local bad_score = bad_players[player]
+          if bad_score then
+            bad_score = bad_score - 1
+            if bad_score <= 0 then
+              bad_score = nil
+            end
+            bad_players[player] = bad_score
+          end
+        
+          if not bad_score and GetPlayerRoutingBucket(player) == bucket then
+            local ped = GetPlayerPed(player)
+            if DoesEntityExist(ped) then
+              local coords = GetEntityCoords(ped)
+              local dist = #(coords - pos)
+              if dist < min_dist then
+                min_dist = dist
+                min_player = player
+              end
+            end
+          end
+        end
+        
+        if min_player then
+          spawning_time = GetGameTimer()
+          spawning_player = min_player
+          token = newtoken(token_spawners)
+          token_spawners[token] = data
+          
+          TriggerClientEvent('fivework:SpawnEntity', min_player, token, fname, spawn_args)
+        end
+      end
+    end
+    return data
+  end
+  
+  function SetEntitySpawnerRoutingBucket(spawner, bucket)
+    return spawner.set_bucket(bucket)
+  end
+  
+  function GetEntitySpawnerRoutingBucket(spawner)
+    return spawner.get_bucket()
+  end
+  
+  function DeleteEntitySpawner(spawner)
+    return spawner.delete()
+  end
+  
+  Cfx_CreateThread(function()
+    while true do
+      Cfx_Wait(2000)
+      for k, v in pairs(active_spawners) do
+        if v then
+          FW_TryCall(k.update)
+        end
+      end
+    end
+  end)
+  
+  local check_timeout = FW_CheckTimeout
+  
+  local NetworkGetEntityFromNetworkId = _ENV.NetworkGetEntityFromNetworkId
+  
+  RegisterNetEvent('fivework:EntitySpawned')
+  AddEventHandler('fivework:EntitySpawned', function(netid, token)
+    local source = _ENV.source
+    print(source, netid, token)
+    local spawner = token_spawners[token]
+  
+    local id = NetworkGetEntityFromNetworkId(netid)
+    local a, b = check_timeout()
+    while not DoesEntityExist(id) do
+      a, b = check_timeout(a, b, 1000)
+      if not a then
+        return
+      end
+      id = NetworkGetEntityFromNetworkId(netid)
+    end
+    
+    if spawner and token_spawners[token] == spawner then
+      spawner.spawned(id)
+    else
+      DeleteEntity(id)
+    end
+  end)
+  
+  local function add_state(state, key, fname, once, ...)
     local init = state[init_key]
     local max_clock = -1
     if not init then
@@ -510,15 +733,39 @@ do
     state[init_key] = init
   end
   
-  local function set_entity_state(fname, entity, key_length, once, ...)
+  local function add_entity_state(entity, key, fname, once, ...)
+    local state = Entity(entity).state
+    return add_state(state, key, fname, once, ...)
+  end
+  
+  local function add_entity_spawner_state(spawner, key, fname, once, ...)
+    local state = spawner.state
+    return add_state(state, key, fname, once, ...)
+  end
+  
+  local function set_entity_state(adder, fname, entity, key_length, once, ...)
     if not key_length then
-      return add_entity_state(entity, nil, fname, once, ...)
+      return adder(entity, nil, fname, once, ...)
     else
       local key_parts = {fname, ...}
       for i = key_length + 2, #key_parts do
         key_parts[i] = nil
       end
-      return add_entity_state(entity, j_encode(key_parts), fname, once, ...)
+      return adder(entity, j_encode(key_parts), fname, once, ...)
+    end
+  end
+  
+  local function entity_state_result(adder, has_key, once)
+    return function(fname)
+      if has_key then
+        return function(entity, key_length, ...)
+          return set_entity_state(adder, fname, entity, key_length, once, ...)
+        end
+      else
+        return function(entity, ...)
+          return set_entity_state(adder, fname, entity, 0, once, ...)
+        end
+      end
     end
   end
   
@@ -539,24 +786,17 @@ do
     ['ForOwnerTimeout$'] = timeout_call_result(owner_task_factory),
     ['ForOwnerTryTimeout$'] = try_timeout_call_result(owner_task_factory),
     ['ForOwnerDiscard$'] = pass_result(owner_discard_factory),
-    ['ForEntity$'] = function(fname)
-      return function(entity, ...)
-        return set_entity_state(fname, entity, 0, false, ...)
-      end
-    end,
-    ['ForEntityOnce$'] = function(fname)
-      return function(entity, ...)
-        return set_entity_state(fname, entity, 0, true, ...)
-      end
-    end,
-    ['ForEntityKey$'] = function(fname)
-      return function(entity, key_length, ...)
-        return set_entity_state(fname, entity, key_length, false, ...)
-      end
-    end,
-    ['ForEntityOnceKey$'] = function(fname)
-      return function(entity, key_length, ...)
-        return set_entity_state(fname, entity, key_length, true, ...)
+    ['ForEntity$'] = entity_state_result(add_entity_state, false, false),
+    ['ForEntityOnce$'] = entity_state_result(add_entity_state, false, true),
+    ['ForEntityKey$'] = entity_state_result(add_entity_state, true, false),
+    ['ForEntityOnceKey$'] = entity_state_result(add_entity_state, true, true),
+    ['ForEntitySpawner$'] = entity_state_result(add_entity_spawner_state, false, false),
+    ['ForEntitySpawnerOnce$'] = entity_state_result(add_entity_spawner_state, false, true),
+    ['ForEntitySpawnerKey$'] = entity_state_result(add_entity_spawner_state, true, false),
+    ['ForEntitySpawnerOnceKey$'] = entity_state_result(add_entity_spawner_state, true, true),
+    ['NewSpawner$'] = function(fname)
+      return function(model, x, y, z, bucket, ...)
+        return create_spawner(fname, model, x, y, z, bucket, ...)
       end
     end,
     ['FromPlayer$'] = function(key)
