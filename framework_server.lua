@@ -513,6 +513,9 @@ do
   local GetPlayerRoutingBucket = _ENV.GetPlayerRoutingBucket
   local GetPlayerPed = _ENV.GetPlayerPed
   local DeleteEntity = _ENV.DeleteEntity
+  local GetEntityCoords = _ENV.GetEntityCoords
+  local GetEntityRotation = _ENV.GetEntityRotation
+  local GetEntityHealth = _ENV.GetEntityHealth
   
   AddEventHandler('entityRemoved', function(entity)
     local data = entity_spawners[entity]
@@ -528,10 +531,39 @@ do
     local entity
     local is_deleting
     
+    local set_rotation = SetEntityRotationForEntitySpawner
+    local set_health = SetEntityHealthForEntitySpawner
+    
+    local state = setmetatable({}, {
+      __newindex = function(self, key, value)
+        if entity and DoesEntityExist(entity) then
+          Entity(entity).state[key] = value
+        end
+        return rawset(self, key, value)
+      end
+    })
+    data.state = state
+    
     function data.removed()
+      local rotation, health
+      if not is_deleting and entity and DoesEntityExist(entity) then
+        local pos = GetEntityCoords(entity)
+        x, y, z = pos.x, pos.y, pos.z
+        spawn_args[2] = x
+        spawn_args[3] = y
+        spawn_args[4] = z
+        rotation = GetEntityRotation(entity)
+        health = GetEntityHealth(entity)
+      end
       data.set_entity(nil)
       if is_deleting then
         active_spawners[data] = nil
+      end
+      if rotation then
+        set_rotation(data, rotation.x, rotation.y, rotation.z, 2, true)
+      end
+      if health then
+        set_health(data, health)
       end
     end
     
@@ -548,16 +580,6 @@ do
       end
       active_spawners[data] = nil
     end
-    
-    local state = setmetatable({}, {
-      __newindex = function(self, key, value)
-        if entity and DoesEntityExist(entity) then
-          Entity(entity).state[key] = value
-        end
-        return rawset(self, key, value)
-      end
-    })
-    data.state = state
     
     local bad_players = {}
     
