@@ -755,18 +755,12 @@ do
   
   local function add_state(state, key, fname, once, ...)
     local init = state[init_key]
-    local max_clock = -1
     if not init then
       init = {}
-    else
-      for k, v in pairs(init) do
-        local clock = v[2]
-        if clock > max_clock then
-          max_clock = clock
-        end
-      end
     end
-    local data = {fname, max_clock + 1, once, t_pack(nil, ...)}
+    local clock = (init._cl or -1) + 1
+    init._cl = clock
+    local data = {fname, clock, once, t_pack(nil, ...)}
     if not key then
       t_insert(init, data)
     else

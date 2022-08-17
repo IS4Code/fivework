@@ -806,7 +806,7 @@ do
   DecorRegister(init_clock_key, 3)
   
   AddStateBagChangeHandler(init_key, nil, function(bagName, key, value, source)
-    if source == 0 and key == init_key then
+    if source == 0 and key == init_key and type(value) == 'table' then
       local id = get_entity_from_bag(bagName)
       local a, b = check_timeout()
       while not id do
@@ -820,33 +820,36 @@ do
       if DecorExistOn(id, init_clock_key) then
         start = DecorGetInt(id, init_clock_key) + 1
       end
-      local keys = {}
-      local calls = {}
-      for k, v in pairs(value) do
-        if v[2] >= start then
-          t_insert(calls, v)
-          keys[v] = k
-        end
-      end
-      if #calls > 0 then
-        t_sort(calls, clock_comparer)
-        DecorSetInt(id, init_clock_key, calls[#calls][2])
-        for i, v in ipairs(calls) do
-          local name, clock, once, args = t_unpack(v)
-          
-          if once then
-            local state = Entity(id).state
-            local state_key = init_set_key_prefix..keys[v]
-            local set_clock = state[state_key]
-            if not set_clock or set_clock < clock then
-              state[state_key] = clock
-              once = false
-            end
+      local new_clock = value._cl
+      if new_clock >= start then
+        local keys = {}
+        local calls = {}
+        for k, v in pairs(value) do
+          if type(v) == 'table' and v[2] >= start then
+            t_insert(calls, v)
+            keys[v] = k
           end
-          
-          if not once then
-            args[1] = id
-            FW_Async(remote_call, name, nil, args)
+        end
+        DecorSetInt(id, init_clock_key, new_clock)
+        if #calls > 0 then
+          t_sort(calls, clock_comparer)
+          for i, v in ipairs(calls) do
+            local name, clock, once, args = t_unpack(v)
+            
+            if once then
+              local state = Entity(id).state
+              local state_key = init_set_key_prefix..keys[v]
+              local set_clock = state[state_key]
+              if not set_clock or set_clock < clock then
+                state:set(state_key, clock, true)
+                once = false
+              end
+            end
+            
+            if not once then
+              args[1] = id
+              FW_Async(remote_call, name, nil, args)
+            end
           end
         end
       end
