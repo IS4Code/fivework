@@ -854,7 +854,8 @@ do
   end)
   
   RegisterNetEvent('fivework:SpawnEntity')
-  AddEventHandler('fivework:SpawnEntity', function(token, fname, spawn_args)    FW_Async(function()
+  AddEventHandler('fivework:SpawnEntity', function(token, fname, spawn_args)
+    FW_Async(function()
       LoadModel(spawn_args[1])
       local ok, id = remote_call(fname, nil, spawn_args)
       if ok and id and DoesEntityExist(id) then
@@ -862,11 +863,14 @@ do
         while not NetworkGetEntityIsNetworked(id) do
           a, b = check_timeout(a, b, 1000)
           if not a then
+            FW_DebugLog("Spawned entity", id, "is not networked, deleting...")
             return DeleteEntity(id)
           end
         end
+        FW_DebugLog("Spawned entity", id, "has netid", NetworkGetNetworkIdFromEntity(id))
         return TriggerServerEvent('fivework:EntitySpawned', NetworkGetNetworkIdFromEntity(id), token)
       end
+      FW_DebugLog("Spawning entity failed:", ok, id)
     end)
   end)
 end  

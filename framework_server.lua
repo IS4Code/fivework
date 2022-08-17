@@ -555,6 +555,7 @@ do
     data.state = state
     
     function data.removed()
+      FW_DebugLog("Entity", entity, "for spawner", data, "is being removed")
       local rotation, health
       if not is_deleting and entity and DoesEntityExist(entity) then
         local pos = GetEntityCoords(entity)
@@ -564,6 +565,7 @@ do
         spawn_args[4] = z
         rotation = GetEntityRotation(entity)
         health = GetEntityHealth(entity)
+        FW_DebugLog("Preserved state", pos, rotation, health)
       end
       data.set_entity(nil)
       if is_deleting then
@@ -597,6 +599,8 @@ do
       if entity then
         entity_spawners[entity] = nil
       end
+      
+      FW_DebugLog("Changing entity for", data, "from", entity, "to", id)
       
       data.entity = id
       entity = id
@@ -642,6 +646,7 @@ do
       end
       if spawning_time then
         if GetGameTimer() - spawning_time > 3000 then
+          FW_DebugLog("Player", spawning_player, "did not spawn entity", fname, data, "within 3s timeout, looking for another...")
           spawning_time = nil
           bad_players[spawning_player] = 6
           spawning_player = nil
@@ -686,6 +691,7 @@ do
           token = newtoken(token_spawners)
           token_spawners[token] = data
           
+          FW_DebugLog("Spawning", fname, data, "for player", min_player)
           TriggerClientEvent('fivework:SpawnEntity', min_player, token, fname, spawn_args)
         end
       end
@@ -724,20 +730,25 @@ do
   AddEventHandler('fivework:EntitySpawned', function(netid, token)
     local source = _ENV.source
     local spawner = token_spawners[token]
+    
+    FW_DebugLog("Spawned entity with netid", netid, "for", spawner, "by player", source)
   
     local id = NetworkGetEntityFromNetworkId(netid)
     local a, b = check_timeout()
     while not DoesEntityExist(id) do
       a, b = check_timeout(a, b, 1000)
       if not a then
+        FW_DebugLog("Spawned entity did not appear within 1s timeout")
         return
       end
       id = NetworkGetEntityFromNetworkId(netid)
     end
     
     if spawner and token_spawners[token] == spawner then
+      FW_DebugLog("Successfully assigned entity", id, "to", spawner)
       spawner.spawned(id)
     else
+      FW_DebugLog("Entity", id, "does not belong to any spawner, deleting...")
       DeleteEntity(id)
     end
   end)

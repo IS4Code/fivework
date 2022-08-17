@@ -48,6 +48,7 @@ end
 
 FW_ErrorLog = print
 FW_WarningLog = print
+FW_DebugLog = function()end
 
 local monitor_interval = 100
 
