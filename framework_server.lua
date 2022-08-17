@@ -539,12 +539,17 @@ do
     local set_rotation = SetEntityRotationForEntitySpawner
     local set_health = SetEntityHealthForEntitySpawner
     
+    local state_data = {}
+    
     local state = setmetatable({}, {
       __newindex = function(self, key, value)
+        state_data[key] = value
         if entity and DoesEntityExist(entity) then
           Entity(entity).state[key] = value
         end
-        return rawset(self, key, value)
+      end,
+      __index = function(self, key)
+        return state_data[key]
       end
     })
     data.state = state
@@ -718,7 +723,6 @@ do
   RegisterNetEvent('fivework:EntitySpawned')
   AddEventHandler('fivework:EntitySpawned', function(netid, token)
     local source = _ENV.source
-    print(source, netid, token)
     local spawner = token_spawners[token]
   
     local id = NetworkGetEntityFromNetworkId(netid)
