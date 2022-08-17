@@ -803,6 +803,8 @@ do
   local init_clock_key = 'fw:ic'
   local init_set_key_prefix = 'fw:is'
   
+  DecorRegister(init_clock_key, 3)
+  
   AddStateBagChangeHandler(init_key, nil, function(bagName, key, value, source)
     if source == 0 and key == init_key then
       local id = get_entity_from_bag(bagName)
