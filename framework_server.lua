@@ -534,6 +534,7 @@ do
     local spawn_args = t_pack(model, x, y, z, ...)
     local entity
     local is_deleting
+    bucket = bucket or 0
     
     local set_rotation = SetEntityRotationForEntitySpawner
     local set_health = SetEntityHealthForEntitySpawner
