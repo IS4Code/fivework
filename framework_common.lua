@@ -29,6 +29,11 @@ local m_type = math.type
 local m_tointeger = math.tointeger
 local m_modf = math.modf
 local m_maxinteger = math.maxinteger
+local u_codepoint = utf8.codepoint
+local u_char = utf8.char
+local u_charpattern = utf8.charpattern
+local s_char = string.char
+local s_byte = string.byte
 
 local GetHashKey = _ENV.GetHashKey
 local GetGameTimer = _ENV.GetGameTimer
@@ -885,5 +890,58 @@ do
     end
     Cfx_Wait(time2)
     return time1, time2
+  end
+end
+
+-- miscellaneous
+
+do
+  local tr_table = {}
+  local escape_char = '\27'
+  
+  local function pattern_replacer(value)
+    if value == escape_char or u_codepoint(value) >= 128 then
+      local rep = tr_table[value]
+      if not rep then
+        rep = #tr_table + 1
+        if rep > 128 then
+          return error("Too many distinct characters in patterns!")
+        end
+        tr_table[rep] = value
+        rep = s_char(127 + rep)
+        tr_table[value] = rep
+      end
+      return rep
+    end
+  end
+  
+  local function input_replacer(value)
+    if value == escape_char or u_codepoint(value) >= 128 then
+      return tr_table[value] or escape_char..cp..escape_char
+    end
+  end
+  
+  local function input_back_replacer(char, ord)
+    if char == escape_char then
+      ord = tonumber(ord)
+      if ord then
+        return u_char(ord)
+      end
+    end
+    local rep = s_byte(char) - 127
+    return tr_table[rep]
+  end
+  
+  function TransformUtf8Pattern(pattern)
+    return (pattern:gsub(u_charpattern, pattern_replacer))
+  end
+  
+  function TransformUtf8(input)
+    return (input:gsub(u_charpattern, input_replacer))
+  end
+  
+  local pattern = '(['..escape_char..'\128-\255])([0-9]*)'..escape_char..'?'
+  function TransformUtf8Back(input)
+    return (input:gsub(pattern, input_back_replacer))
   end
 end
