@@ -667,12 +667,23 @@ do
       data.set_entity(id, netid)
     end
     
+    function data.parent_removed()
+      if entity and not DoesEntityExist(entity) then
+        data.set_entity(nil)
+      end
+      if entity then
+        local removed_entity = entity
+        data.removed()
+        DeleteEntity(entity)
+      end
+    end
+    
     function data.update(parent_player)
       if is_deleting then
         return
       end
       if entity and not DoesEntityExist(entity) then
-        entity = nil
+        data.set_entity(nil)
       end
       if parent and not parent_player then
         return
@@ -731,6 +742,10 @@ do
           
           FW_DebugLog("Spawning", fname, data, "for player", min_player)
           TriggerClientEvent('fivework:SpawnEntity', min_player, token, fname, spawn_args)
+        end
+        
+        for k in pairs(children) do
+          k.parent_removed()
         end
       else
         local owner = NetworkGetEntityOwner(entity)
