@@ -554,6 +554,18 @@ do
     })
     data.state = state
     
+    data.entity = setmetatable({}, {
+      __tostring = function(self)
+        return tostring(self.__data)
+      end
+    })
+    
+    data.netid = setmetatable({}, {
+      __tostring = function(self)
+        return tostring(self.__data)
+      end
+    })
+    
     function data.removed()
       FW_DebugLog("Entity", entity, "for spawner", data, "is being removed")
       local rotation, health
@@ -595,14 +607,15 @@ do
     
     local bad_players = {}
     
-    function data.set_entity(id)
+    function data.set_entity(id, netid)
       if entity then
         entity_spawners[entity] = nil
       end
       
       FW_DebugLog("Changing entity for", data, "from", entity, "to", id)
       
-      data.entity = id
+      data.entity.__data = id
+      data.netid.__data = netid
       entity = id
       bad_players = {}
       
@@ -629,12 +642,12 @@ do
     local spawning_player
     local token
     
-    function data.spawned(id)
+    function data.spawned(id, netid)
       token_spawners[token] = nil
       token = nil
       spawning_time = nil
       spawning_player = nil
-      data.set_entity(id)
+      data.set_entity(id, netid)
     end
     
     function data.update()
@@ -707,6 +720,14 @@ do
     return spawner.get_bucket()
   end
   
+  function GetEntitySpawnerEntity(spawner)
+    return spawner.entity
+  end
+  
+  function GetEntitySpawnerNetworkId(spawner)
+    return spawner.netid
+  end
+  
   function DeleteEntitySpawner(spawner)
     return spawner.delete()
   end
@@ -746,7 +767,7 @@ do
     
     if spawner and token_spawners[token] == spawner then
       FW_DebugLog("Successfully assigned entity", id, "to", spawner)
-      spawner.spawned(id)
+      spawner.spawned(id, netid)
     else
       FW_DebugLog("Entity", id, "does not belong to any spawner, deleting...")
       DeleteEntity(id)
