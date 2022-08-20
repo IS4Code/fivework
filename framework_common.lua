@@ -34,6 +34,10 @@ local u_char = utf8.char
 local u_charpattern = utf8.charpattern
 local s_char = string.char
 local s_byte = string.byte
+local s_gsub = string.gsub
+local s_sub = string.sub
+local s_find = string.find
+local s_match = string.match
 
 local GetHashKey = _ENV.GetHashKey
 local GetGameTimer = _ENV.GetGameTimer
@@ -216,7 +220,7 @@ do
             elseif func then
               name = find_global(func)
               if not name then
-                name = tostring(func):gsub('^function: 0?x?0*', '0x')
+                name = s_gsub(tostring(func), '^function: 0?x?0*', '0x')
               end
             end
           end
@@ -230,22 +234,22 @@ do
               value = tostring(value)
             elseif value_type == 'string' then
               if #value > 32 then
-                value = value:sub(1, 29)
-                value = "\""..value:gsub(string_escape_pattern, string_escapes).."\"..."
+                value = s_sub(value, 1, 29)
+                value = "\""..s_gsub(value, string_escape_pattern, string_escapes).."\"..."
               else
-                value = "\""..value:gsub(string_escape_pattern, string_escapes).."\""
+                value = "\""..s_gsub(value, string_escape_pattern, string_escapes).."\""
               end
             else
               local name = find_global(value)
               if name then
                 value = name
               else
-                value = tostring(value):gsub('^'..value_type..': 0?x?0*', '0x')
+                value = s_gsub(tostring(value), '^'..value_type..': 0?x?0*', '0x')
                 value = value_type.."("..value..")"
               end
             end
             local str
-            if name:sub(1, 1) == '(' then
+            if s_sub(name, 1, 1) == '(' then
               str = value
             else
               str = name.." = "..value
@@ -499,7 +503,7 @@ do
   
   function callback_info.OnStateBagChange(handler)
     AddStateBagChangeHandler(nil, nil, function(bagName, key, value, source, ...)
-      local bagType, id = bagName:match("^([^:]*):(.*)")
+      local bagType, id = s_match(bagName, '^([^:]*):(.*)')
       if id then
         id = tonumber(id) or id
       end
@@ -570,12 +574,12 @@ local command_mt = {
     if type(raw) == 'string' then
       local value
       if key == 'rawName' then
-        local pos, _, match = raw:find('^%s*([^%s]+)%s*')
+        local pos, _, match = s_find(raw, '^%s*([^%s]+)%s*')
         if pos then
           value = match
         end
       elseif key == 'rawArgs' then
-        value = raw:gsub('^%s*[^%s]+%s*', '')
+        value = s_gsub(raw, '^%s*[^%s]+%s*', '')
       end
       rawset(self, key, value)
       return value
@@ -858,9 +862,9 @@ do
   local DoesEntityExist = _ENV.DoesEntityExist
 
   function FW_GetEntityFromBag(bagName)
-    local id, pos = bagName:gsub('^localEntity:', '')
+    local id, pos = s_gsub(bagName, '^localEntity:', '')
     if pos == 0 then
-      id, pos = bagName:gsub('^entity:', '')
+      id, pos = s_gsub(bagName, '^entity:', '')
       if pos == 0 then
         id = nil
       else
@@ -933,15 +937,15 @@ do
   end
   
   function TransformUtf8Pattern(pattern)
-    return (pattern:gsub(u_charpattern, pattern_replacer))
+    return (s_gsub(pattern, u_charpattern, pattern_replacer))
   end
   
   function TransformUtf8(input)
-    return (input:gsub(u_charpattern, input_replacer))
+    return (s_gsub(input, u_charpattern, input_replacer))
   end
   
-  local pattern = '(['..escape_char..'\128-\255])([0-9]*)'..escape_char..'?'
+  local back_pattern = '(['..escape_char..'\128-\255])([0-9]*)'..escape_char..'?'
   function TransformUtf8Back(input)
-    return (input:gsub(pattern, input_back_replacer))
+    return (s_gsub(input, back_pattern, input_back_replacer))
   end
 end
