@@ -520,6 +520,7 @@ do
   local GetEntityCoords = _ENV.GetEntityCoords
   local GetEntityRotation = _ENV.GetEntityRotation
   local GetEntityHealth = _ENV.GetEntityHealth
+  local NetworkGetEntityOwner = _ENV.NetworkGetEntityOwner
   
   AddEventHandler('entityRemoved', function(entity)
     local data = entity_spawners[entity]
@@ -534,6 +535,7 @@ do
     local spawn_args = t_pack(model, x, y, z, ...)
     local entity
     local is_deleting
+    local parent
     bucket = bucket or 0
     
     local set_rotation = SetEntityRotationForEntitySpawner
@@ -553,6 +555,9 @@ do
       end
     })
     data.state = state
+    
+    local children = {}
+    data.children = children
     
     data.entity = setmetatable({}, {
       __tostring = function(self)
@@ -627,6 +632,18 @@ do
       end
     end
     
+    function data.set_parent(new_parent)
+      local old_parent = data.parent
+      if old_parent then
+        old_parent.children[data] = nil
+      end
+      data.parent = new_parent
+      parent = new_parent
+      if new_parent then
+        new_parent.children[data] = true
+      end
+    end
+    
     function data.set_bucket(newbucket)
       bucket = newbucket
       if entity and DoesEntityExist(entity) then
@@ -650,12 +667,15 @@ do
       data.set_entity(id, netid)
     end
     
-    function data.update()
+    function data.update(parent_player)
       if is_deleting then
         return
       end
       if entity and not DoesEntityExist(entity) then
         entity = nil
+      end
+      if parent and not parent_player then
+        return
       end
       if spawning_time then
         if GetGameTimer() - spawning_time > 3000 then
@@ -671,28 +691,33 @@ do
       end
       if not entity then
         x, y, z = t_unpack(spawn_args, 2)
-        local pos = vec3(x, y, z)
-        local min_dist = m_huge
         local min_player
         
-        for player in FW_EligibleSpawnerPlayers(x, y, z, bucket) do
-          local bad_score = bad_players[player]
-          if bad_score then
-            bad_score = bad_score - 1
-            if bad_score <= 0 then
-              bad_score = nil
+        if parent_player then
+          min_player = parent_player
+        else
+          local pos = vec3(x, y, z)
+          local min_dist = m_huge
+          
+          for player in FW_EligibleSpawnerPlayers(x, y, z, bucket) do
+            local bad_score = bad_players[player]
+            if bad_score then
+              bad_score = bad_score - 1
+              if bad_score <= 0 then
+                bad_score = nil
+              end
+              bad_players[player] = bad_score
             end
-            bad_players[player] = bad_score
-          end
-        
-          if not bad_score and GetPlayerRoutingBucket(player) == bucket then
-            local ped = GetPlayerPed(player)
-            if DoesEntityExist(ped) then
-              local coords = GetEntityCoords(ped)
-              local dist = #(coords - pos)
-              if dist < min_dist then
-                min_dist = dist
-                min_player = player
+          
+            if not bad_score and GetPlayerRoutingBucket(player) == bucket then
+              local ped = GetPlayerPed(player)
+              if DoesEntityExist(ped) then
+                local coords = GetEntityCoords(ped)
+                local dist = #(coords - pos)
+                if dist < min_dist then
+                  min_dist = dist
+                  min_player = player
+                end
               end
             end
           end
@@ -706,6 +731,15 @@ do
           
           FW_DebugLog("Spawning", fname, data, "for player", min_player)
           TriggerClientEvent('fivework:SpawnEntity', min_player, token, fname, spawn_args)
+        end
+      else
+        local owner = NetworkGetEntityOwner(entity)
+        if owner then
+          for k in pairs(children) do
+            if active_spawners[k] then
+              k.update(owner)
+            end
+          end
         end
       end
     end
@@ -730,6 +764,14 @@ do
   
   function DeleteEntitySpawner(spawner)
     return spawner.delete()
+  end
+  
+  function SetEntitySpawnerParent(spawner, parent)
+    return spawner.set_parent(parent)
+  end
+  
+  function GetEntitySpawnerParent(spawner)
+    return spawner.parent
   end
   
   Cfx_CreateThread(function()
