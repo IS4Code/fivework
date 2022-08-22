@@ -920,8 +920,9 @@ do
   end
   
   local function input_replacer(value)
-    if value == escape_char or u_codepoint(value) >= 128 then
-      return tr_table[value] or escape_char..cp..escape_char
+    local ord = u_codepoint(value)
+    if value == escape_char or ord >= 128 then
+      return tr_table[value] or escape_char..ord..escape_char
     end
   end
   
