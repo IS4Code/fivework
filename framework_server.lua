@@ -831,15 +831,34 @@ do
     end
   end)
   
-  local function add_state(state, key, fname, once, ...)
+  local function clear_state(state)
+    local init = state[init_key]
+    if init then
+      local clock = (init._cl or -1) + 1
+      state[init_key] = {_cl = clock}
+    end
+  end
+  
+  function ClearEntityInitState(entity)
+    return clear_state(Entity(entity).state)
+  end
+  
+  function ClearEntitySpawnerInitState(spawner)
+    return clear_state(spawner.state)
+  end
+  
+  local function add_state(state, key, fname, once, args)
     local init = state[init_key]
     if not init then
       init = {}
     end
     local clock = (init._cl or -1) + 1
     init._cl = clock
-    local data = {fname, clock, once, t_pack(nil, ...)}
-    if not key then
+    local data
+    if args then
+      data = {fname, clock, once, args}
+    end
+    if not key and data then
       t_insert(init, data)
     else
       init[key] = data
@@ -847,37 +866,41 @@ do
     state[init_key] = init
   end
   
-  local function add_entity_state(entity, key, fname, once, ...)
+  local function add_entity_state(entity, key, fname, once, args)
     local state = Entity(entity).state
-    return add_state(state, key, fname, once, ...)
+    return add_state(state, key, fname, once, args)
   end
   
-  local function add_entity_spawner_state(spawner, key, fname, once, ...)
+  local function add_entity_spawner_state(spawner, key, fname, once, args)
     local state = spawner.state
-    return add_state(state, key, fname, once, ...)
+    return add_state(state, key, fname, once, args)
   end
   
-  local function set_entity_state(adder, fname, entity, key_length, once, ...)
+  local function set_entity_state(adder, fname, entity, key_length, once, reset, ...)
+    local args
+    if not reset then
+      args = t_pack(nil, ...)
+    end
     if not key_length then
-      return adder(entity, nil, fname, once, ...)
+      return adder(entity, nil, fname, once, args)
     else
       local key_parts = {fname, ...}
       for i = key_length + 2, #key_parts do
         key_parts[i] = nil
       end
-      return adder(entity, j_encode(key_parts), fname, once, ...)
+      return adder(entity, j_encode(key_parts), fname, once, args)
     end
   end
   
-  local function entity_state_result(adder, has_key, once)
+  local function entity_state_result(adder, has_key, once, reset)
     return function(fname)
       if has_key then
         return function(entity, key_length, ...)
-          return set_entity_state(adder, fname, entity, key_length, once, ...)
+          return set_entity_state(adder, fname, entity, key_length, once, reset, ...)
         end
       else
         return function(entity, ...)
-          return set_entity_state(adder, fname, entity, 0, once, ...)
+          return set_entity_state(adder, fname, entity, 0, once, reset, ...)
         end
       end
     end
@@ -900,14 +923,18 @@ do
     ['ForOwnerTimeout$'] = timeout_call_result(owner_task_factory),
     ['ForOwnerTryTimeout$'] = try_timeout_call_result(owner_task_factory),
     ['ForOwnerDiscard$'] = pass_result(owner_discard_factory),
-    ['ForEntity$'] = entity_state_result(add_entity_state, false, false),
-    ['ForEntityOnce$'] = entity_state_result(add_entity_state, false, true),
-    ['ForEntityKey$'] = entity_state_result(add_entity_state, true, false),
-    ['ForEntityOnceKey$'] = entity_state_result(add_entity_state, true, true),
-    ['ForEntitySpawner$'] = entity_state_result(add_entity_spawner_state, false, false),
-    ['ForEntitySpawnerOnce$'] = entity_state_result(add_entity_spawner_state, false, true),
-    ['ForEntitySpawnerKey$'] = entity_state_result(add_entity_spawner_state, true, false),
-    ['ForEntitySpawnerOnceKey$'] = entity_state_result(add_entity_spawner_state, true, true),
+    ['ForEntity$'] = entity_state_result(add_entity_state, false, false, false),
+    ['ForEntityOnce$'] = entity_state_result(add_entity_state, false, true, false),
+    ['ForEntityKey$'] = entity_state_result(add_entity_state, true, false, false),
+    ['ForEntityOnceKey$'] = entity_state_result(add_entity_state, true, true, false),
+    ['ForEntityNot$'] = entity_state_result(add_entity_state, false, false, true),
+    ['ForEntityNotKey$'] = entity_state_result(add_entity_state, true, false, true),
+    ['ForEntitySpawner$'] = entity_state_result(add_entity_spawner_state, false, false, false),
+    ['ForEntitySpawnerOnce$'] = entity_state_result(add_entity_spawner_state, false, true, false),
+    ['ForEntitySpawnerKey$'] = entity_state_result(add_entity_spawner_state, true, false, false),
+    ['ForEntitySpawnerOnceKey$'] = entity_state_result(add_entity_spawner_state, true, true, false),
+    ['ForEntitySpawnerNot$'] = entity_state_result(add_entity_spawner_state, false, false, true),
+    ['ForEntitySpawnerNotKey$'] = entity_state_result(add_entity_spawner_state, true, false, true),
     ['NewSpawner$'] = function(fname)
       return function(model, x, y, z, bucket, ...)
         return create_spawner(fname, model, x, y, z, bucket, ...)
