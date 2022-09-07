@@ -760,8 +760,12 @@ do
     return validator
   end
   
-  local Default = {}
-  _ENV.Default = Default
+  local DefaultValue = {}
+  _ENV.Default = DefaultValue
+  _ENV.DefaultValue = DefaultValue
+  
+  local DefaultKey = {}
+  _ENV.DefaultKey = DefaultKey
   
   Ensure = function(default_value, ...)
     local value_type
@@ -775,9 +779,19 @@ do
     end
     local table_mt
     if default_value and value_type == 'table' then
+      local function validate_key(key)
+        if default_value[key] == nil then
+          local key_validator = get_validator(default_value[DefaultKey])
+          if key_validator then 
+            return key_validator(key)
+          end
+        end
+        return key
+      end
       table_mt = {
         __index = function(self, key)
-          local validator = get_validator(default_value[key] or default_value[Default])
+          key = validate_key(key)
+          local validator = get_validator(default_value[key]) or get_validator(default_value[DefaultValue])
           if validator then
             local result = validator()
             if is_complex(result) and key ~= nil and key == key then
@@ -787,8 +801,9 @@ do
           end
         end,
         __newindex = function(self, key, value)
+          key = validate_key(key)
           if value ~= nil then
-            local validator = get_validator(default_value[key] or default_value[Default])
+            local validator = get_validator(default_value[key]) or get_validator(default_value[DefaultValue])
             if validator then
               return rawset(self, key, validator(value))
             end
@@ -823,16 +838,41 @@ do
         if value_type == 'table' then
           tested = tested or {}
           if default_value then
-            local default_validator = get_validator(default_value[Default])
-            if default_validator then
+            local default_value_validator = get_validator(default_value[DefaultValue])
+            local default_key_validator = get_validator(default_value[DefaultKey])
+            if default_key_validator or default_value_validator then
+              local moved
               for k, v in pairs(tested) do
-                if not default_value[k] then
-                  tested[k] = default_validator(v)
+                if default_value[k] == nil then
+                  if default_key_validator then
+                    local new_k = default_key_validator(k)
+                    if new_k ~= k then
+                      if not moved then
+                        moved = {}
+                      end
+                      moved[new_k] = v
+                      tested[k] = nil
+                    elseif default_value_validator then
+                      tested[k] = default_value_validator(v)
+                    end
+                  elseif default_value_validator then
+                    tested[k] = default_value_validator(v)
+                  end
+                end
+              end
+              if moved then
+                for k, v in pairs(moved) do
+                  if tested[k] == nil then
+                    if default_value_validator and default_value[k] ~= nil then
+                      v = default_value_validator(v)
+                    end
+                    tested[k] = v
+                  end
                 end
               end
             end
             for k, v in pairs(default_value) do
-              if k ~= Default then
+              if k ~= DefaultValue and k ~= DefaultKey then
                 local value = tested[k]
                 if value ~= nil then
                   tested[k] = get_validator(v)(value)
