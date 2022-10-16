@@ -981,8 +981,18 @@ do
     return nil
   end
   
+  local old_global_mt = getmetatable(_ENV)
   setmetatable(_ENV, {
     __index = function(self, key)
+      if old_global_mt then
+        local indexer = old_global_mt.__index
+        if indexer then
+          local existing = indexer(self, key)
+          if existing ~= nil then
+            return existing
+          end
+        end
+      end
       if type(key) ~= 'string' then return nil end
       local result = find_pattern_function(key)
       if result then
@@ -1001,6 +1011,12 @@ do
           FW_WarningLog("Global '"..key.."' not declared before assignment to "..tostring(value)..", at:\n", FW_Traceback(nil, 2))
         end
         registered_globals[key] = true
+      end
+      if old_global_mt then
+        local newindexer = old_global_mt.__newindex
+        if newindexer then
+          return newindexer(self, key, value)
+        end
       end
       return rawset(self, key, value)
     end
