@@ -740,6 +740,8 @@ do
     __mode = 'k'
   })
   
+  local validator_integer_cache = {}
+  
   local Ensure
   
   local function get_validator(func)
@@ -752,10 +754,19 @@ do
     if func ~= func then
       return Ensure(func)
     end
-    local validator = validator_cache[func]
-    if not validator then
-      validator = Ensure(func)
-      validator_cache[func] = validator
+    local validator
+    if m_type(func) == 'integer' then
+      validator = validator_integer_cache[func]
+      if not validator then
+        validator = Ensure(func)
+        validator_integer_cache[func] = validator
+      end
+    else
+      validator = validator_cache[func]
+      if not validator then
+        validator = Ensure(func)
+        validator_cache[func] = validator
+      end
     end
     return validator
   end
