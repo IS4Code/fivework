@@ -45,6 +45,7 @@ local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
 local NetworkGetEntityFromNetworkId = _ENV.NetworkGetEntityFromNetworkId
 local NetworkDoesNetworkIdExist = _ENV.NetworkDoesNetworkIdExist
 local NetworkGetEntityIsNetworked = _ENV.NetworkGetEntityIsNetworked
+local NetworkHasControlOfEntity = _ENV.NetworkHasControlOfEntity
 local DoesEntityExist = _ENV.DoesEntityExist
 local GetGameTimer = _ENV.GetGameTimer
 local GetTimeDifference = _ENV.GetTimeDifference
@@ -834,21 +835,23 @@ do
         if #calls > 0 then
           t_sort(calls, clock_comparer)
           for i, v in ipairs(calls) do
-            local name, clock, once, args = t_unpack(v)
+            local name, clock, once, for_owner, args = t_unpack(v)
             
-            if once then
-              local state = Entity(id).state
-              local state_key = init_set_key_prefix..keys[v]
-              local set_clock = state[state_key]
-              if not set_clock or set_clock < clock then
-                state:set(state_key, clock, true)
-                once = false
+            if not for_owner or NetworkHasControlOfEntity(id) then
+              if once then
+                local state = Entity(id).state
+                local state_key = init_set_key_prefix..keys[v]
+                local set_clock = state[state_key]
+                if not set_clock or set_clock < clock then
+                  state:set(state_key, clock, true)
+                  once = false
+                end
               end
-            end
-            
-            if not once then
-              args[1] = id
-              FW_Async(remote_call, name, nil, args)
+              
+              if not once then
+                args[1] = id
+                FW_Async(remote_call, name, nil, args)
+              end
             end
           end
         end
