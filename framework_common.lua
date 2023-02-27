@@ -332,9 +332,13 @@ function FW_Async(func, ...)
   active_threads[thread] = true
   local on_yield
   local function schedule(scheduler, ...)
-    return scheduler(function(...)
+    local continuation = function(...)
       return on_yield(GetGameTimer(), cor_resume(thread, ...))
-    end, ...)
+    end
+    if type(scheduler) == 'number' then
+      return Cfx_SetTimeout(scheduler, continuation, ...)
+    end
+    return scheduler(continuation, ...)
   end
   on_yield = function(start_time, status, ok_or_scheduler, ...)
     check_time(start_time, func, thread)
