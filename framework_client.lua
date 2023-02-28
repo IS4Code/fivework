@@ -335,7 +335,7 @@ do
   end
   
   local function network_id_from_entity(id)
-    if m_type(id) == 'integer' and DoesEntityExist(id) then
+    if m_type(id) == 'integer' and id >= 0 and DoesEntityExist(id) then
       return NetworkGetNetworkIdFromEntity(id) 
     else
       return nil
