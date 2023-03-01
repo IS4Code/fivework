@@ -871,7 +871,7 @@ do
     return add_state(state, key, fname, once, for_owner, args)
   end
   
-  local function add_entity_spawner_state(spawner, key, fname, for_owner, once, args)
+  local function add_entity_spawner_state(spawner, key, fname, once, for_owner, args)
     local state = spawner.state
     return add_state(state, key, fname, once, for_owner, args)
   end
@@ -923,7 +923,7 @@ do
     ['ForOwnerTimeout$'] = timeout_call_result(owner_task_factory),
     ['ForOwnerTryTimeout$'] = try_timeout_call_result(owner_task_factory),
     ['ForOwnerDiscard$'] = pass_result(owner_discard_factory),
-    ['ForEntity$'] = entity_state_result(add_entity_state, false, false, false),
+    ['ForEntity$'] = entity_state_result(add_entity_state, false, false, false, false),
     ['ForEntityOnce$'] = entity_state_result(add_entity_state, false, true, false, false),
     ['ForEntityKey$'] = entity_state_result(add_entity_state, true, false, false, false),
     ['ForEntityOnceKey$'] = entity_state_result(add_entity_state, true, true, false, false),
