@@ -848,7 +848,7 @@ do
                 end
               end
               
-              if not once then
+              if not once and args then
                 args[1] = id
                 FW_Async(remote_call, name, nil, args)
               end
