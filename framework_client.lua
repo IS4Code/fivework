@@ -1901,8 +1901,10 @@ do
     local ped = PlayerPedId()
     SetEntityVisible(ped, false, false)
     
-    if LoadModel(model) then
-      SetPlayerModel(PlayerId(), model)
+    if not model or LoadModel(model) then
+      if model then
+        SetPlayerModel(PlayerId(), model)
+      end
       ped = PlayerPedId()
       
       if modelProperties then
@@ -1913,6 +1915,8 @@ do
           end
         end
       end
+    else
+      ped = PlayerPedId()
     end
     
     RequestCollisionAtCoord(x, y, z)
