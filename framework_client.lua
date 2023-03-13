@@ -802,9 +802,11 @@ do
   
   local init_key = 'fw:ei'
   local init_clock_key = 'fw:ic'
+  local init_old_entity_id_key = 'fw:oe'
   local init_set_key_prefix = 'fw:is'
   
   DecorRegister(init_clock_key, 3)
+  DecorRegister(init_old_entity_id_key, 3)
   
   AddStateBagChangeHandler(init_key, nil, function(bagName, key, value, source)
     if source == 0 and key == init_key and type(value) == 'table' then
@@ -818,8 +820,12 @@ do
         id = get_entity_from_bag(bagName)
       end
       local start = 0
-      if DecorExistOn(id, init_clock_key) then
-        start = DecorGetInt(id, init_clock_key) + 1
+      if DecorExistOn(id, init_old_entity_id_key) and DecorGetInt(id, init_old_entity_id_key) == id then
+        if DecorExistOn(id, init_clock_key) then
+          start = DecorGetInt(id, init_clock_key) + 1
+        end
+      else
+        DecorSetInt(id, init_old_entity_id_key, id)
       end
       local new_clock = value._cl
       if new_clock >= start then
