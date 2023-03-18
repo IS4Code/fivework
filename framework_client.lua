@@ -1461,6 +1461,7 @@ local GetPlayerPed = _ENV.GetPlayerPed
 local GetEntityAttachedTo = _ENV.GetEntityAttachedTo
 local GetEntityCoords = _ENV.GetEntityCoords
 local GetVehiclePedIsIn = _ENV.GetVehiclePedIsIn
+local GetGamePool = _ENV.GetGamePool
 
 do
   local entity_enumerator = {
@@ -1472,11 +1473,16 @@ do
     end
   }
   
-  local function enumerate_entities(initFunc, moveFunc, disposeFunc)
+  local function enumerate_entities(initFunc, moveFunc, disposeFunc, poolName)
     return cor_wrap(function()
       local iter, id = initFunc()
       if not id or id == 0 then
         disposeFunc(iter)
+        if poolName then
+          for _, id in ipairs(GetGamePool(poolName)) do
+            cor_yield(id)
+          end
+        end
         return
       end
       
@@ -1498,7 +1504,7 @@ do
   local FindNextObject = _ENV.FindNextObject
   local EndFindObject = _ENV.EndFindObject
   function EnumerateAllObjects()
-    return enumerate_entities(FindFirstObject, FindNextObject, EndFindObject)
+    return enumerate_entities(FindFirstObject, FindNextObject, EndFindObject, 'CObject')
   end
   local EnumerateAllObjects = _ENV.EnumerateAllObjects
   
@@ -1506,7 +1512,7 @@ do
   local FindNextPed = _ENV.FindNextPed
   local EndFindPed = _ENV.EndFindPed
   function EnumerateAllPeds()
-    return enumerate_entities(FindFirstPed, FindNextPed, EndFindPed)
+    return enumerate_entities(FindFirstPed, FindNextPed, EndFindPed, 'CPed')
   end
   local EnumerateAllPeds = _ENV.EnumerateAllPeds
   
@@ -1514,7 +1520,7 @@ do
   local FindNextVehicle = _ENV.FindNextVehicle
   local EndFindVehicle = _ENV.EndFindVehicle
   function EnumerateAllVehicles()
-    return enumerate_entities(FindFirstVehicle, FindNextVehicle, EndFindVehicle)
+    return enumerate_entities(FindFirstVehicle, FindNextVehicle, EndFindVehicle, 'CVehicle')
   end
   local EnumerateAllVehicles = _ENV.EnumerateAllVehicles
   
@@ -1522,7 +1528,7 @@ do
   local FindNextPickup = _ENV.FindNextPickup
   local EndFindPickup = _ENV.EndFindPickup
   function EnumeratePickups()
-    return enumerate_entities(FindFirstPickup, FindNextPickup, EndFindPickup)
+    return enumerate_entities(FindFirstPickup, FindNextPickup, EndFindPickup, 'CPickup')
   end
   local EnumeratePickups = _ENV.EnumeratePickups
   
