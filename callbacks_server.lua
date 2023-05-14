@@ -102,6 +102,7 @@ end)
 
 FW_RegisterPlainCallback('OnPlayerEnterExitArea')
 FW_RegisterPlainCallback('OnPlayerEnterExitSphere')
+FW_RegisterPlainCallback('OnPlayerEnterExitCircle')
 
 function RegisterPlayerAreaCheck(playerid, name, ...)
   FW_RegisterUpdateKeyDefaultForPlayerDiscard(playerid, 'IsEntityWithinAreaSelfPedSkip', 1, false, name, ...)
@@ -109,6 +110,10 @@ end
 
 function RegisterPlayerSphereCheck(playerid, name, ...)
   FW_RegisterUpdateKeyDefaultForPlayerDiscard(playerid, 'IsEntityWithinRangeSelfPedSkip', 1, false, name, ...)
+end
+
+function RegisterPlayerCircleCheck(playerid, name, ...)
+  FW_RegisterUpdateKeyDefaultForPlayerDiscard(playerid, 'IsEntityWithinRange2DSelfPedSkip', 1, false, name, ...)
 end
 
 function UnregisterPlayerAreaCheck(playerid, name)
@@ -119,12 +124,20 @@ function UnregisterPlayerSphereCheck(playerid, name)
   FW_UnregisterUpdateForPlayerDiscard(playerid, 'IsEntityWithinRangeSelfPedSkip', name)
 end
 
+function UnregisterPlayerCircleCheck(playerid, name)
+  FW_UnregisterUpdateForPlayerDiscard(playerid, 'IsEntityWithinRange2DSelfPedSkip', name)
+end
+
 function RegisterPlayerGroupAreaCheck(playerid, group, name, ...)
   FW_RegisterGroupUpdateKeyDefaultForPlayerDiscard(playerid, group, 'IsEntityWithinAreaSelfPedSkip', 1, false, name, ...)
 end
 
 function RegisterPlayerGroupSphereCheck(playerid, group, name, ...)
   FW_RegisterGroupUpdateKeyDefaultForPlayerDiscard(playerid, group, 'IsEntityWithinRangeSelfPedSkip', 1, false, name, ...)
+end
+
+function RegisterPlayerGroupCircleCheck(playerid, group, name, ...)
+  FW_RegisterGroupUpdateKeyDefaultForPlayerDiscard(playerid, group, 'IsEntityWithinRange2DSelfPedSkip', 1, false, name, ...)
 end
 
 function UnregisterPlayerGroupAreaCheck(playerid, group, name)
@@ -135,12 +148,18 @@ function UnregisterPlayerGroupSphereCheck(playerid, group, name)
   FW_UnregisterGroupUpdateForPlayerDiscard(playerid, group, 'IsEntityWithinRangeSelfPedSkip', name)
 end
 
+function UnregisterPlayerGroupCircleCheck(playerid, group, name)
+  FW_UnregisterGroupUpdateForPlayerDiscard(playerid, group, 'IsEntityWithinRange2DSelfPedSkip', name)
+end
+
 function CheckPlayerUpdates(playerid, updates)
   for key, value in pairs(updates) do
     if key[1] == 'IsEntityWithinAreaSelfPedSkip' then
       FW_TriggerCallback('OnPlayerEnterExitArea', playerid, key[2], table.unpack(value))
     elseif key[1] == 'IsEntityWithinRangeSelfPedSkip' then
       FW_TriggerCallback('OnPlayerEnterExitSphere', playerid, key[2], table.unpack(value))
+    elseif key[1] == 'IsEntityWithinRange2DSelfPedSkip' then
+      FW_TriggerCallback('OnPlayerEnterExitCircle', playerid, key[2], table.unpack(value))
     end
   end
 end
