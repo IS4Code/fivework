@@ -9,6 +9,7 @@ local cor_status = cor.status
 local error = _ENV.error
 local assert = _ENV.assert
 local tostring = _ENV.tostring
+local rawget = _ENV.rawget
 local rawset = _ENV.rawset
 local pcall = _ENV.pcall
 local xpcall = _ENV.xpcall
@@ -806,6 +807,10 @@ do
       table_mt = {
         __index = function(self, key)
           key = validate_key(key)
+          local old_value = rawget(self, key)
+          if old_value ~= nil then
+            return old_value
+          end
           local validator = get_validator(default_value[key]) or get_validator(default_value[DefaultValue])
           if validator then
             local result = validator()
