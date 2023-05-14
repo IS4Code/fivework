@@ -1266,6 +1266,9 @@ end
 do
   local registered_updates = {}
   local registered_updates_grouped = {}
+  local updates_results_cache = setmetatable({}, {
+    __mode = 'v'
+  })
   
   local thread_running = {}
   local default_interval = 0
@@ -1355,12 +1358,22 @@ do
   
   function FW_RegisterGroupUpdateKeyDefault(group, fname, key_length, value, ...)
     local key = {fname, ...}
+    local results_key = j_encode(key)
+    local group_key
     if key_length then
       for i = key_length + 2, #key do
         key[i] = nil
       end
+      group_key = j_encode(key)
+    else
+      group_key = results_key
     end
-    get_grouped(group)[j_encode(key)] = t_pack(nil, value, fname, ...)
+    local cached = updates_results_cache[results_key]
+    if not cached then
+      cached = t_pack(nil, value, fname, ...)
+      updates_results_cache[results_key] = cached
+    end
+    get_grouped(group)[group_key] = cached
   end
   local FW_RegisterGroupUpdateKeyDefault = _ENV.FW_RegisterGroupUpdateKeyDefault
   
