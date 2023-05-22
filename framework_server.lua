@@ -529,6 +529,14 @@ do
     end
   end)
   
+  local entity_last_state = setmetatable({}, {
+    __mode = 'v'
+  })
+  
+  function GetEntityLastState(entity)
+    return entity_last_state[entity]
+  end
+  
   local function create_spawner(fname, model, x, y, z, bucket, ...)
     local data = {}
     active_spawners[data] = true
@@ -548,6 +556,7 @@ do
         state_data[key] = value
         if entity and DoesEntityExist(entity) then
           Entity(entity).state[key] = value
+          entity_last_state[entity] = value
         end
       end,
       __index = function(self, key)
@@ -868,6 +877,7 @@ do
   
   local function add_entity_state(entity, key, fname, once, for_owner, args)
     local state = Entity(entity).state
+    entity_last_state[entity] = state
     return add_state(state, key, fname, once, for_owner, args)
   end
   
