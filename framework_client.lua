@@ -1236,17 +1236,25 @@ do
     return registered_controls[index] ~= nil
   end
   
+  local function IsAnyControlJustPressed(...)
+    return IsControlJustPressed(...) or IsDisabledControlJustPressed(...)
+  end
+  
+  local function IsAnyControlJustReleased(...)
+    return IsControlJustReleased(...) or IsDisabledControlJustReleased(...)
+  end
+  
   Cfx_CreateThread(function()
     while true do
       local pressed, released
       for k, info in pairs(registered_controls) do
-        if IsControlJustPressed(t_unpack(info)) then
+        if IsAnyControlJustReleased(t_unpack(info)) then
           if not pressed then
             pressed = {}
           end
           pressed[info[2]] = info[1]
         end
-        if IsControlJustReleased(t_unpack(info)) then
+        if IsAnyControlJustReleased(t_unpack(info)) then
           if not released then
             released = {}
           end
