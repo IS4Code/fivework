@@ -537,6 +537,20 @@ do
     return entity_last_state[entity]
   end
   
+  local entity_state_known_keys = setmetatable({
+    [init_key] = true
+  }, {
+    __mode = 'k'
+  })
+  
+  function GetEntityStateKnownKeys()
+    return pairs(entity_state_known_keys)
+  end
+  
+  function AddEntityStateKnownKey(key)
+    entity_state_known_keys[key] = true
+  end
+  
   local function create_spawner(fname, model, x, y, z, bucket, ...)
     local data = {}
     active_spawners[data] = true
@@ -554,9 +568,11 @@ do
     local state = setmetatable({}, {
       __newindex = function(self, key, value)
         state_data[key] = value
+        entity_state_known_keys[key] = true
         if entity and DoesEntityExist(entity) then
-          Entity(entity).state[key] = value
-          entity_last_state[entity] = value
+          local state = Entity(entity).state
+          entity_last_state[entity] = state
+          state[key] = value
         end
       end,
       __index = function(self, key)
