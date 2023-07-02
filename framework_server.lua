@@ -522,19 +522,31 @@ do
   local GetEntityHealth = _ENV.GetEntityHealth
   local NetworkGetEntityOwner = _ENV.NetworkGetEntityOwner
   
+  local entity_last_state = setmetatable({}, {})
+  
+  local entity_last_state_weak = setmetatable({}, {
+    __mode = 'v'
+  })
+  
   AddEventHandler('entityRemoved', function(entity)
+    local state = entity_last_state[entity]
+    if state then
+      entity_last_state[entity] = nil
+      entity_last_state_weak[entity] = state
+    end
+    
     local data = entity_spawners[entity]
     if data then
       data.removed()
     end
   end)
   
-  local entity_last_state = setmetatable({}, {
-    __mode = 'v'
-  })
+  function StoreEntityLastState(entity)
+    entity_last_state[entity] = Entity(entity).state
+  end
   
   function GetEntityLastState(entity)
-    return entity_last_state[entity]
+    return entity_last_state[entity] or entity_last_state_weak[entity]
   end
   
   local entity_state_known_keys = setmetatable({
