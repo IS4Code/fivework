@@ -512,7 +512,7 @@ do
     return AllPlayers()
   end
   
-  local DoesEntityExist = _ENV.DoesEntityExist
+  local DoesEntityExist = _ENV.DoesEntityExistSafe
   local SetEntityRoutingBucket = _ENV.SetEntityRoutingBucket
   local GetPlayerRoutingBucket = _ENV.GetPlayerRoutingBucket
   local GetPlayerPed = _ENV.GetPlayerPed

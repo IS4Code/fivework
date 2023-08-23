@@ -916,10 +916,18 @@ end
 
 -- shared
 
+local DoesEntityExist_orig = _ENV.DoesEntityExist
+
+function DoesEntityExistSafe(id)
+  local ok, result = pcall(DoesEntityExist_orig, id)
+  return ok and result
+end
+
+local DoesEntityExist = _ENV.DoesEntityExistSafe
+
 do
   local NetworkGetEntityFromNetworkId = _ENV.NetworkGetEntityFromNetworkId
   local NetworkDoesNetworkIdExist = _ENV.NetworkDoesNetworkIdExist or function() return true end
-  local DoesEntityExist = _ENV.DoesEntityExist
 
   function FW_GetEntityFromBag(bagName)
     local id, pos = s_gsub(bagName, '^localEntity:', '')
