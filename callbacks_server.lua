@@ -155,11 +155,17 @@ end
 function CheckPlayerUpdates(playerid, updates)
   for key, value in pairs(updates) do
     if key[1] == 'IsEntityWithinAreaSelfPedSkip' then
-      FW_TriggerCallback('OnPlayerEnterExitArea', playerid, key[2], table.unpack(value))
+      if FW_TriggerCallback('OnPlayerEnterExitArea', playerid, key[2], table.unpack(value)) then
+        updates[key] = nil
+      end
     elseif key[1] == 'IsEntityWithinRangeSelfPedSkip' then
-      FW_TriggerCallback('OnPlayerEnterExitSphere', playerid, key[2], table.unpack(value))
+      if FW_TriggerCallback('OnPlayerEnterExitSphere', playerid, key[2], table.unpack(value)) then
+        updates[key] = nil
+      end
     elseif key[1] == 'IsEntityWithinRange2DSelfPedSkip' then
-      FW_TriggerCallback('OnPlayerEnterExitCircle', playerid, key[2], table.unpack(value))
+      if FW_TriggerCallback('OnPlayerEnterExitCircle', playerid, key[2], table.unpack(value)) then
+        updates[key] = nil
+      end
     end
   end
 end
