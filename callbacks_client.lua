@@ -61,3 +61,15 @@ function IsEntityWithinArea(entity, x1, y1, z1, x2, y2, z2)
   local pos = GetEntityCoords(entity)
   return pos.x >= x1 and pos.x <= x2 and pos.y >= y1 and pos.y <= y2 and pos.z >= z1 and pos.z <= z2
 end
+
+function CheckPlayerUpdates(updates)
+  for key, value in pairs(updates) do
+    if key[1] == 'IsEntityWithinAreaSelfPedSkip' then
+      FW_TriggerCallback('OnPlayerEnterExitArea', key[2], table.unpack(value))
+    elseif key[1] == 'IsEntityWithinRangeSelfPedSkip' then
+      FW_TriggerCallback('OnPlayerEnterExitSphere', key[2], table.unpack(value))
+    elseif key[1] == 'IsEntityWithinRange2DSelfPedSkip' then
+      FW_TriggerCallback('OnPlayerEnterExitCircle', key[2], table.unpack(value))
+    end
+  end
+end
