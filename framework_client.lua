@@ -285,7 +285,12 @@ do
     end)
   end
   
+  local FW_TriggerCallback = _ENV.FW_TriggerCallback
+  
   function FW_TriggerNetCallback(name, ...)
+    if FW_TriggerCallback('Before'..name) then
+      return
+    end
     return t_insert(callbacks_queue, {name, observe_state(t_pack(...))})
   end
 end
