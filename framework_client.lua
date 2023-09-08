@@ -272,21 +272,8 @@ do
       end
     end
   end)
-
-  function FW_RegisterNetCallback(name, eventname, processor)
-    return AddEventHandler(eventname, function(...)
-      local args
-      if processor then
-        args = t_pack(processor(...))
-      else
-        args = t_pack(...)
-      end
-      return t_insert(callbacks_queue, {name, observe_state(args)})
-    end)
-  end
   
   local FW_TriggerCallback = _ENV.FW_TriggerCallback
-  
   function FW_TriggerNetCallback(name, ...)
     if FW_TriggerCallback('Before'..name, ...) then
       return
@@ -295,6 +282,16 @@ do
   end
 end
 local FW_TriggerNetCallback = _ENV.FW_TriggerNetCallback
+
+function FW_RegisterNetCallback(name, eventname, processor)
+  return AddEventHandler(eventname, function(...)
+    if processor then
+      return FW_TriggerNetCallback(name, processor(...))
+    else
+      return FW_TriggerNetCallback(name, ...)
+    end
+  end)
+end
 
 -- frame handlers
 
