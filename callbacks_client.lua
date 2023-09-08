@@ -62,6 +62,60 @@ function IsEntityWithinArea(entity, x1, y1, z1, x2, y2, z2)
   return pos.x >= x1 and pos.x <= x2 and pos.y >= y1 and pos.y <= y2 and pos.z >= z1 and pos.z <= z2
 end
 
+
+FW_RegisterPlainCallback('BeforeOnPlayerUpdate')
+FW_RegisterPlainCallback('OnPlayerEnterExitArea')
+FW_RegisterPlainCallback('OnPlayerEnterExitSphere')
+FW_RegisterPlainCallback('OnPlayerEnterExitCircle')
+
+function RegisterAreaCheck(name, ...)
+  FW_RegisterUpdateKeyDefault('IsEntityWithinAreaSelfPedSkip', 1, false, name, ...)
+end
+
+function RegisterSphereCheck(name, ...)
+  FW_RegisterUpdateKeyDefault('IsEntityWithinRangeSelfPedSkip', 1, false, name, ...)
+end
+
+function RegisterCircleCheck(name, ...)
+  FW_RegisterUpdateKeyDefault('IsEntityWithinRange2DSelfPedSkip', 1, false, name, ...)
+end
+
+function UnregisterAreaCheck(name)
+  FW_UnregisterUpdate('IsEntityWithinAreaSelfPedSkip', name)
+end
+
+function UnregisterSphereCheck(name)
+  FW_UnregisterUpdate('IsEntityWithinRangeSelfPedSkip', name)
+end
+
+function UnregisterCircleCheck(name)
+  FW_UnregisterUpdate('IsEntityWithinRange2DSelfPedSkip', name)
+end
+
+function RegisterGroupAreaCheck(group, name, ...)
+  FW_RegisterGroupUpdateKeyDefault(group, 'IsEntityWithinAreaSelfPedSkip', 1, false, name, ...)
+end
+
+function RegisterGroupSphereCheck(group, name, ...)
+  FW_RegisterGroupUpdateKeyDefault(group, 'IsEntityWithinRangeSelfPedSkip', 1, false, name, ...)
+end
+
+function RegisterGroupCircleCheck(group, name, ...)
+  FW_RegisterGroupUpdateKeyDefault(group, 'IsEntityWithinRange2DSelfPedSkip', 1, false, name, ...)
+end
+
+function UnregisterGroupAreaCheck(group, name)
+  FW_UnregisterGroupUpdate(group, 'IsEntityWithinAreaSelfPedSkip', name)
+end
+
+function UnregisterGroupSphereCheck(group, name)
+  FW_UnregisterGroupUpdate(group, 'IsEntityWithinRangeSelfPedSkip', name)
+end
+
+function UnregisterGroupCircleCheck(group, name)
+  FW_UnregisterGroupUpdate(group, 'IsEntityWithinRange2DSelfPedSkip', name)
+end
+
 function CheckPlayerUpdates(updates)
   for key, value in pairs(updates) do
     if key[1] == 'IsEntityWithinAreaSelfPedSkip' then
