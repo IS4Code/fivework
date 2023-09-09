@@ -1250,7 +1250,7 @@ do
     while true do
       local pressed, released
       for k, info in pairs(registered_controls) do
-        if IsAnyControlJustReleased(t_unpack(info)) then
+        if IsAnyControlJustPressed(t_unpack(info)) then
           if not pressed then
             pressed = {}
           end
