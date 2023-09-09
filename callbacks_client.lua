@@ -37,7 +37,7 @@ end)
 
 local m_type = math.type
 
-local DoesEntityExist = _ENV.DoesEntityExist
+local DoesEntityExist = _ENV.DoesEntityExistSafe
 FW_RegisterObserver('NetworkGetNetworkIdFromEntity', function(id)
   return m_type(id) == 'integer' and id >= 0 and DoesEntityExist(id) and NetworkGetEntityIsNetworked(id)
 end)
