@@ -117,15 +117,15 @@ function RegisterPlayerCircleCheck(playerid, name, ...)
 end
 
 function UnregisterPlayerAreaCheck(playerid, name)
-  FW_UnregisterUpdateForPlayerDiscard(playerid, 'IsEntityWithinAreaSelfPedSkip', name)
+  FW_UnregisterUpdateDefaultForPlayerDiscard(playerid, 'IsEntityWithinAreaSelfPedSkip', false, name)
 end
 
 function UnregisterPlayerSphereCheck(playerid, name)
-  FW_UnregisterUpdateForPlayerDiscard(playerid, 'IsEntityWithinRangeSelfPedSkip', name)
+  FW_UnregisterUpdateDefaultForPlayerDiscard(playerid, 'IsEntityWithinRangeSelfPedSkip', false, name)
 end
 
 function UnregisterPlayerCircleCheck(playerid, name)
-  FW_UnregisterUpdateForPlayerDiscard(playerid, 'IsEntityWithinRange2DSelfPedSkip', name)
+  FW_UnregisterUpdateDefaultForPlayerDiscard(playerid, 'IsEntityWithinRange2DSelfPedSkip', false, name)
 end
 
 function RegisterPlayerGroupAreaCheck(playerid, group, name, ...)
@@ -141,15 +141,15 @@ function RegisterPlayerGroupCircleCheck(playerid, group, name, ...)
 end
 
 function UnregisterPlayerGroupAreaCheck(playerid, group, name)
-  FW_UnregisterGroupUpdateForPlayerDiscard(playerid, group, 'IsEntityWithinAreaSelfPedSkip', name)
+  FW_UnregisterGroupUpdateDefaultForPlayerDiscard(playerid, group, 'IsEntityWithinAreaSelfPedSkip', false, name)
 end
 
 function UnregisterPlayerGroupSphereCheck(playerid, group, name)
-  FW_UnregisterGroupUpdateForPlayerDiscard(playerid, group, 'IsEntityWithinRangeSelfPedSkip', name)
+  FW_UnregisterGroupUpdateDefaultForPlayerDiscard(playerid, group, 'IsEntityWithinRangeSelfPedSkip', false, name)
 end
 
 function UnregisterPlayerGroupCircleCheck(playerid, group, name)
-  FW_UnregisterGroupUpdateForPlayerDiscard(playerid, group, 'IsEntityWithinRange2DSelfPedSkip', name)
+  FW_UnregisterGroupUpdateDefaultForPlayerDiscard(playerid, group, 'IsEntityWithinRange2DSelfPedSkip', false, name)
 end
 
 function CheckPlayerUpdates(playerid, updates)

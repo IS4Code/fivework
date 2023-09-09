@@ -1421,10 +1421,34 @@ do
     return FW_RegisterGroupUpdate(nil, fname, ...)
   end
   
-  function FW_UnregisterGroupUpdate(group, ...)
-    get_grouped(group)[j_encode{...}] = nil
+  function FW_UnregisterGroupUpdateDefault(group, fname, newvalue, ...)
+    local grouped = get_grouped(group)
+    if grouped then
+      local group_key = j_encode{fname, ...}
+      local info = grouped[group_key]
+      grouped[group_key] = nil
+      if info and newvalue ~= nil then
+        local oldvalue = info[2]
+        if oldvalue ~= newvalue and (oldvalue == oldvalue or newvalue == newvalue) then
+          info[2] = newvalue
+          local updates = {
+            [t_pack(t_unpack(info, 3))] = {newvalue, oldvalue}
+          }
+          FW_TriggerNetCallback('OnPlayerUpdate', updates)
+        end
+      end
+    end
+  end
+  local FW_UnregisterGroupUpdateDefault = _ENV.FW_UnregisterGroupUpdateDefault
+  
+  function FW_UnregisterGroupUpdate(group, fname, ...)
+    return FW_UnregisterGroupUpdateDefault(group, fname, nil, ...)
   end
   local FW_UnregisterGroupUpdate = _ENV.FW_UnregisterGroupUpdate
+  
+  function FW_UnregisterUpdateDefault(fname, value, ...)
+    return FW_UnregisterGroupUpdateDefault(nil, fname, value, ...)
+  end
   
   function FW_UnregisterUpdate(...)
     return FW_UnregisterGroupUpdate(nil, ...)

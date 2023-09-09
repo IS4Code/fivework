@@ -81,15 +81,15 @@ function RegisterCircleCheck(name, ...)
 end
 
 function UnregisterAreaCheck(name)
-  FW_UnregisterUpdate('IsEntityWithinAreaSelfPedSkip', name)
+  FW_UnregisterUpdateDefault('IsEntityWithinAreaSelfPedSkip', false, name)
 end
 
 function UnregisterSphereCheck(name)
-  FW_UnregisterUpdate('IsEntityWithinRangeSelfPedSkip', name)
+  FW_UnregisterUpdateDefault('IsEntityWithinRangeSelfPedSkip', false, name)
 end
 
 function UnregisterCircleCheck(name)
-  FW_UnregisterUpdate('IsEntityWithinRange2DSelfPedSkip', name)
+  FW_UnregisterUpdateDefault('IsEntityWithinRange2DSelfPedSkip', false, name)
 end
 
 function RegisterGroupAreaCheck(group, name, ...)
@@ -105,15 +105,15 @@ function RegisterGroupCircleCheck(group, name, ...)
 end
 
 function UnregisterGroupAreaCheck(group, name)
-  FW_UnregisterGroupUpdate(group, 'IsEntityWithinAreaSelfPedSkip', name)
+  FW_UnregisterGroupUpdateDefault(group, 'IsEntityWithinAreaSelfPedSkip', false, name)
 end
 
 function UnregisterGroupSphereCheck(group, name)
-  FW_UnregisterGroupUpdate(group, 'IsEntityWithinRangeSelfPedSkip', name)
+  FW_UnregisterGroupUpdateDefault(group, 'IsEntityWithinRangeSelfPedSkip', false, name)
 end
 
 function UnregisterGroupCircleCheck(group, name)
-  FW_UnregisterGroupUpdate(group, 'IsEntityWithinRange2DSelfPedSkip', name)
+  FW_UnregisterGroupUpdateDefault(group, 'IsEntityWithinRange2DSelfPedSkip', false, name)
 end
 
 function CheckPlayerUpdates(updates)
