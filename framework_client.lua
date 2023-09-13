@@ -1383,7 +1383,13 @@ do
       cached = t_pack(nil, value, fname, ...)
       updates_results_cache[results_key] = cached
     end
-    get_grouped(group)[group_key] = cached
+    if type(group) == 'function' then
+      for k, v in group() do
+        get_grouped(v or k)[group_key] = cached
+      end
+    else
+      get_grouped(group)[group_key] = cached
+    end
   end
   local FW_RegisterGroupUpdateKeyDefault = _ENV.FW_RegisterGroupUpdateKeyDefault
   
@@ -1421,22 +1427,35 @@ do
     return FW_RegisterGroupUpdate(nil, fname, ...)
   end
   
-  function FW_UnregisterGroupUpdateDefault(group, fname, newvalue, ...)
+  local function process_unregister(updates, group, group_key, newvalue)
     local grouped = get_grouped(group)
     if grouped then
-      local group_key = j_encode{fname, ...}
       local info = grouped[group_key]
       grouped[group_key] = nil
       if info and newvalue ~= nil then
         local oldvalue = info[2]
         if oldvalue ~= newvalue and (oldvalue == oldvalue or newvalue == newvalue) then
           info[2] = newvalue
-          local updates = {
-            [t_pack(t_unpack(info, 3))] = {newvalue, oldvalue}
-          }
-          FW_TriggerNetCallback('OnPlayerUpdate', updates)
+          updates = updates or {}
+          updates[t_pack(t_unpack(info, 3))] = {newvalue, oldvalue}
         end
       end
+    end
+    return updates
+  end
+  
+  function FW_UnregisterGroupUpdateDefault(group, fname, newvalue, ...)
+    local group_key = j_encode{fname, ...}
+    local updates
+    if type(group) == 'function' then
+      for k, v in group() do
+        updates = process_unregister(updates, v or k, group_key, newvalue)
+      end
+    else
+      updates = process_unregister(updates, group, group_key, newvalue)
+    end
+    if updates then
+      FW_TriggerNetCallback('OnPlayerUpdate', updates)
     end
   end
   local FW_UnregisterGroupUpdateDefault = _ENV.FW_UnregisterGroupUpdateDefault
