@@ -530,12 +530,25 @@ do
   public = setmetatable({}, {
     __newindex = function(self, key, value)
       if not registered_events[key] then
-        registered_events[key] = create_handler(key, function(...)
-          local func = self[key]
-          if func then
-            return immediate(FW_Async(func, ...))
+        local callback_key = s_match(key, '^(.*)_NoAsync$')
+        local caller
+        if callback_key then
+          caller = function(...)
+            local func = self[key]
+            if func then
+              return func(...)
+            end
           end
-        end)
+        else
+          callback_key = key
+          caller = function(...)
+            local func = self[key]
+            if func then
+              return immediate(FW_Async(func, ...))
+            end
+          end
+        end
+        registered_events[key] = create_handler(callback_key, caller)
       end
       return rawset(self, key, value)
     end
