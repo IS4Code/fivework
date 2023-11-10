@@ -381,6 +381,7 @@ function FW_Schedule(scheduler, ...)
   end
   return cor_yield(scheduler, ...)
 end
+local FW_Schedule = _ENV.FW_Schedule
 
 local function immediate(done, ...)
   return ...
