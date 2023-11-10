@@ -18,6 +18,7 @@ local setmetatable = _ENV.setmetatable
 local type = _ENV.type
 local select = _ENV.select
 local tonumber = _ENV.tonumber
+local collectgarbage = _ENV.collectgarbage
 local t_pack = table.pack
 local t_unpack_orig = table.unpack
 local t_insert = table.insert
@@ -62,8 +63,14 @@ FW_DebugLog = function()end
 
 local monitor_interval = 100
 
+local async_cleanup = 4
+
 function FW_SetTimeMonitor(interval)
   monitor_interval = interval
+end
+
+function FW_SetAsyncCleanup(size)
+  async_cleanup = size
 end
 
 do
@@ -343,6 +350,9 @@ function FW_Async(func, ...)
   end
   on_yield = function(start_time, status, ok_or_scheduler, ...)
     check_time(start_time, func, thread)
+    if async_cleanup then
+      collectgarbage('step', async_cleanup)
+    end
     if not status then
       active_threads[thread] = nil
       return false, FW_ErrorLog("Unexpected error from coroutine:\n", ok_or_scheduler, ...)
