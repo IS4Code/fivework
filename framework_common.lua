@@ -375,6 +375,10 @@ function FW_IsAsync()
 end
 local FW_IsAsync = _ENV.FW_IsAsync
 
+function FW_MarkAsync(thread)
+  active_threads[thread] = true
+end
+
 function FW_Schedule(scheduler, ...)
   if not FW_IsAsync() then
     return error("attempted to perform asynchronous operation from non-asynchronous context; use FW_Async")
