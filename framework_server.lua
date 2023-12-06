@@ -432,7 +432,7 @@ do
       end
     end
     Cfx_SetTimeout(timeout, function()
-      return finished(false, "timeout "..tostring(tostring).." hit")
+      return finished(false, "timeout "..tostring(timeout).." hit")
     end)
     return scheduler(finished)
   end
