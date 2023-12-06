@@ -376,7 +376,7 @@ end
 local FW_IsAsync = _ENV.FW_IsAsync
 
 function FW_MarkAsync(thread)
-  active_threads[thread] = true
+  active_threads[thread or cor_running()] = true
 end
 
 function FW_Schedule(scheduler, ...)
