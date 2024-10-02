@@ -766,7 +766,7 @@ do
   local infix_pos = #special_prefix + 1
   
   local function is_special(str)
-    return str_sub(str, 1, #special_prefix) == special_prefix
+    return s_sub(str, 1, #special_prefix) == special_prefix
   end
   
   local function needs_transform(t)
@@ -782,7 +782,7 @@ do
           return true
         end
       elseif m_type(v) == 'float' then
-        if v ~= v or v == m_huge or v == -m_huge then
+        if v ~= v or v == m_huge or v == -m_huge or v == m_tointeger(v) then
           return true
         end
       end
@@ -827,6 +827,8 @@ do
           v = special_prefix..special_infix..'inf'
         elseif v == -m_huge then
           v = special_prefix..special_infix..'-inf'
+        elseif v == m_tointeger(v) then
+          v = special_prefix..json_infix..j_encode(v)
         end
       end
       if type(k) ~= 'string' then
@@ -877,12 +879,12 @@ do
     if type(v) == 'table' then
       return transform_table_back(v)
     elseif type(v) == 'string' and is_special(v) then
-      if str_sub(v, infix_pos, infix_pos + #json_infix - 1) == json_infix then
-        return j_decode(str_sub(v, infix_pos + #json_infix))
-      elseif str_sub(v, infix_pos, infix_pos + #literal_infix - 1) == literal_infix then
-        return str_sub(v, infix_pos + #literal_infix)
-      elseif str_sub(v, infix_pos, infix_pos + #special_infix - 1) == special_infix then
-        return special_table[str_sub(v, infix_pos + #special_infix)]
+      if s_sub(v, infix_pos, infix_pos + #json_infix - 1) == json_infix then
+        return j_decode(s_sub(v, infix_pos + #json_infix))
+      elseif s_sub(v, infix_pos, infix_pos + #literal_infix - 1) == literal_infix then
+        return s_sub(v, infix_pos + #literal_infix)
+      elseif s_sub(v, infix_pos, infix_pos + #special_infix - 1) == special_infix then
+        return special_table[s_sub(v, infix_pos + #special_infix)]
       else
         local def = v..definition_suffix
         return t[def]
