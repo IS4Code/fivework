@@ -887,7 +887,57 @@ do
       FW_DebugLog("Spawning entity failed:", ok, id)
     end)
   end)
-end  
+  
+  local state_id_key = 'fw:si'
+  local state_new_id = 1
+  local state_table = {}
+  
+  DecorRegister(state_id_key, 3)
+  
+  Cfx_CreateThread(function()
+    while true do
+      Cfx_Wait(9649)
+      
+      local entity, data = next(state_table)
+      while entity do
+        local next_entity, next_data = next(state_table, entity)
+        
+        if not DoesEntityExist(entity) or DecorGetInt(entity, state_id_key) ~= data[state_id_key] then
+          state_table[entity] = nil
+        end
+        
+        entity, data = next_entity, next_data
+      end
+    end
+  end)
+  
+  function EntityLocalState(entity, retrieve_last)
+    local data = state_table[entity]
+    if data then
+      if not DoesEntityExist(entity) then
+        state_table[entity] = nil
+        if retrieve_last and data[state_id_key] then
+          return data
+        else
+          return nil
+        end
+      end
+      if DecorGetInt(entity, state_id_key) == data[state_id_key] then
+        return data
+      end
+    else
+      if not DoesEntityExist(entity) then
+        return nil
+      end
+    end
+    local id = state_new_id
+    state_new_id = state_new_id + 1
+    data = {[state_id_key] = id}
+    state_table[entity] = data
+    DecorSetInt(entity, state_id_key, id)
+    return data
+  end
+end
 
 -- in-game loading
 
