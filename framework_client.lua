@@ -843,11 +843,19 @@ do
         DecorSetInt(id, init_clock_key, new_clock)
         if #calls > 0 then
           t_sort(calls, clock_comparer)
+          local waited
           for i, v in ipairs(calls) do
             local name, clock, once, for_owner, args = t_unpack(v)
             
             if not for_owner or NetworkHasControlOfEntity(id) then
               if once then
+                if not waited then
+                  Cfx_Wait(0)
+                  if not (DoesEntityExist(id) and DecorExistOn(id, init_clock_key) and DecorGetInt(id, init_clock_key) >= new_clock) then
+                    return
+                  end
+                  waited = true
+                end
                 local state = Entity(id).state
                 local state_key = init_set_key_prefix..keys[v]
                 local set_clock = state[state_key]
