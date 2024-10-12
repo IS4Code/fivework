@@ -894,7 +894,7 @@ do
     init._cl = clock
     local data
     if args then
-      data = {fname, clock, once, for_owner, FW_TransformTableToStore(args)}
+      data = {fname, clock, once, for_owner, args}
     end
     if not key and data then
       t_insert(init, data)

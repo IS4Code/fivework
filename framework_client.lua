@@ -797,7 +797,6 @@ do
   
   local get_entity_from_bag = FW_GetEntityFromBag
   local check_timeout = FW_CheckTimeout
-  local transform_table_back = FW_RestoreTransformedTable
   
   local function clock_comparer(v1, v2)
     return v1[2] < v2[2]
@@ -866,7 +865,6 @@ do
               end
               
               if not once and args then
-                args = transform_table_back(args)
                 args[1] = id
                 FW_Async(remote_call, name, nil, args)
               end
