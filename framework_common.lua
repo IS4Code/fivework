@@ -61,7 +61,7 @@ FW_ErrorLog = print
 FW_WarningLog = print
 FW_DebugLog = function()end
 
-local monitor_interval = 100
+local monitor_interval = 2000
 
 local async_cleanup = 4
 
