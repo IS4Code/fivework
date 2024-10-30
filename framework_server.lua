@@ -212,13 +212,13 @@ local AllPlayers = _ENV.AllPlayers
 
 local NetworkGetEntityOwner = _ENV.NetworkGetEntityOwner
 local NetworkGetNetworkIdFromEntity = _ENV.NetworkGetNetworkIdFromEntity
-  
+
+local newid_chars = {}
 local function newid()
-  local chars = {}
   for i = 1, 32 do
-    chars[i] = m_random(33, 126)
+    newid_chars[i] = m_random(33, 126)
   end
-  return str_char(t_unpack(chars))
+  return str_char(t_unpack(newid_chars))
 end
 
 local function newtoken(continuations)
@@ -244,13 +244,17 @@ do
   local error_dropped = {}
   
   local function newtask(stack)
-    local callbacks = {}
+    local callbacks
     local result
     local function subscribe(callback)
       if result then
         return callback(t_unpack(result))
       else
-        t_insert(callbacks, callback)
+        if not callbacks then
+          callbacks = {callback}
+        else
+          t_insert(callbacks, callback)
+        end
       end
     end
     local function complete(ok, ...)
@@ -262,9 +266,11 @@ do
       end
       result = t_pack(ok_result, ...)
       local handled = false
-      for _, callback in ipairs(callbacks) do
-        callback(ok_result, ...)
-        handled = true
+      if callbacks then
+        for _, callback in ipairs(callbacks) do
+          callback(ok_result, ...)
+          handled = true
+        end
       end
       if not handled and not ok then
         stack.error = ...
