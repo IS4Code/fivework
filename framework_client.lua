@@ -1215,9 +1215,6 @@ do
       local textkey = GetStringEntry(text)
       beginFunc(textkey)
       if data then
-        for i, data_inner in ipairs(data) do
-          parse_text_data(data_inner)
-        end
         parse_text_data(data)
       end
       return endFunc(...)
