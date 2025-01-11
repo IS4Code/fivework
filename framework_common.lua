@@ -432,7 +432,10 @@ local function sleep_scheduler(func, ms, ...)
 end
 
 function Sleep(...)
-  return FW_Schedule(sleep_scheduler, ...)
+  if not FW_IsAsync() then
+    return Cfx_Wait(...)
+  end
+  return cor_yield(sleep_scheduler, ...)
 end
 local Sleep = _ENV.Sleep
 
