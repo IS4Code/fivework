@@ -1055,8 +1055,9 @@ do
 
   local function fade_scheduler(callback, func, check, duration)
     return Cfx_CreateThread(function()
+      local endTime = GetGameTimer() + 2 * duration
       func(duration)
-      while not check() do
+      while (not check()) and (GetGameTimer() < endTime) do
         Cfx_Wait(0)
       end
       return callback(true)
