@@ -177,22 +177,36 @@ do
   AddEventHandler('fivework:ClientCallbacks', function(data)
     local source = _ENV.source
     
-    for _, record in ipairs(data) do
-      local name, args = t_unpack(record)
-      if not callback_info[name] then
-        FW_TriggerCallback('OnUnregisteredNetCallback', source, name, args)
-      else
-        retrieve_observed_state(source, args)
+    local i = 1
+    local count = #data
+    local name
+    
+    local function process()
+      while i <= count do
+        local record = data[i]
+        i = i + 1
         
-        local handler = net_callback_handlers[name]
-        if handler then
-          local ok, msg = xpcall(handler, FW_Traceback, source, t_unpack(args))
-          if not ok then
-            FW_ErrorLog("Error in callback "..name..":\n", msg)
+        local args
+        name, args = t_unpack(record)
+        if not callback_info[name] then
+          FW_TriggerCallback('OnUnregisteredNetCallback', source, name, args)
+        else
+          retrieve_observed_state(source, args)
+          
+          local handler = net_callback_handlers[name]
+          if handler then
+            handler(source, t_unpack(args))
           end
         end
       end
     end
+    
+    repeat
+      local ok, msg = xpcall(process, FW_Traceback)
+      if not ok then
+        FW_ErrorLog("Error in callback "..name..":\n", msg)
+      end
+    until ok
   end)
 end
 
@@ -393,27 +407,40 @@ do
   RegisterNetEvent('fivework:ExecFunctionResults')
   AddEventHandler('fivework:ExecFunctionResults', function(data)
     local source = _ENV.source
-    for _, record in ipairs(data) do
-      local status, args, token = t_unpack(record)
-      retrieve_observed_state(source, args)
-      
-      local continuations = player_continuations[source]
-      if continuations then
-        local handler = continuations[token]
-        if handler then
-          local ok, msg = xpcall(handler, FW_Traceback, status, t_unpack(args))
-          if not ok then
-            FW_ErrorLog("Error in asynchronous continuation:\n", msg)
-          end
-          if not ok or msg then
-            status = true
+    
+    local i = 1
+    local count = #data
+    
+    local function process()
+      while i <= count do
+        local record = data[i]
+        i = i + 1
+    
+        local status, args, token = t_unpack(record)
+        retrieve_observed_state(source, args)
+        
+        local continuations = player_continuations[source]
+        if continuations then
+          local handler = continuations[token]
+          if handler then
+            local result = handler(status, t_unpack(args))
+            if result then
+              status = true
+            end
           end
         end
-      end
-      if not status then
-        FW_ErrorLog("Error from unhandled asynchronous call:\n", t_unpack(args))
+        if not status then
+          FW_ErrorLog("Error from unhandled asynchronous call:\n", t_unpack(args))
+        end
       end
     end
+    
+    repeat
+      local ok, msg = xpcall(process, FW_Traceback)
+      if not ok then
+        FW_ErrorLog("Error in asynchronous continuation:\n", msg)
+      end
+    until ok
   end)
   
   AddEventHandler('playerDropped', function(reason)
