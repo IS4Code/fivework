@@ -14,6 +14,7 @@ local rawset = _ENV.rawset
 local pcall = _ENV.pcall
 local xpcall = _ENV.xpcall
 local ipairs = _ENV.ipairs
+local next = _ENV.next
 local setmetatable = _ENV.setmetatable
 local type = _ENV.type
 local select = _ENV.select
@@ -310,8 +311,22 @@ local active_threads = setmetatable({}, {
   __mode = 'k'
 })
 
-local function thread_func(func, ...)
-  return xpcall(func, FW_Traceback, ...)
+local inactive_threads = setmetatable({}, {
+  __mode = 'k'
+})
+
+local thread_ended_signal = {false}
+
+local thread_func
+
+local function finish_thread_func(status, ...)
+  -- Save status temporarily in signal
+  thread_ended_signal[1] = status
+  return thread_func(cor_yield(thread_ended_signal, ...))
+end
+
+thread_func = function(func, ...)
+  return finish_thread_func(xpcall(func, FW_Traceback, ...))
 end
 
 local function function_info(func)
@@ -336,7 +351,12 @@ local function check_time(start_time, func, thread)
 end
 
 function FW_Async(func, ...)
-  local thread = cor_create(thread_func)
+  local thread = next(inactive_threads)
+  if thread then
+    inactive_threads[thread] = nil
+  else
+    thread = cor_create(thread_func)
+  end
   active_threads[thread] = true
   local on_yield
   local function schedule(scheduler, ...)
@@ -348,20 +368,24 @@ function FW_Async(func, ...)
     end
     return scheduler(continuation, ...)
   end
-  on_yield = function(start_time, status, ok_or_scheduler, ...)
+  on_yield = function(start_time, status, signal_or_scheduler, ...)
     check_time(start_time, func, thread)
     if async_cleanup then
       collectgarbage('step', async_cleanup)
     end
     if not status then
       active_threads[thread] = nil
-      return false, FW_ErrorLog("Unexpected error from coroutine:\n", ok_or_scheduler, ...)
+      return false, FW_ErrorLog("Unexpected error from coroutine:\n", signal_or_scheduler, ...)
     end
-    if cor_status(thread) ~= 'dead' then
-      return false, schedule(ok_or_scheduler, ...)
+    if signal_or_scheduler ~= thread_ended_signal then
+      -- Inner yield with scheduler
+      return false, schedule(signal_or_scheduler, ...)
     end
+    -- Retrieve back status
+    local ok = signal_or_scheduler[1]
     active_threads[thread] = nil
-    if not ok_or_scheduler then
+    inactive_threads[thread] = true
+    if not ok then
       return false, FW_ErrorLog("Error from coroutine:\n", ...)
     end
     return true, ...
@@ -371,12 +395,28 @@ end
 local FW_Async = _ENV.FW_Async
 
 function FW_IsAsync()
-  return active_threads[cor_running()] or false
+  if active_threads[cor_running()] then
+    return true
+  end
+  return false
 end
 local FW_IsAsync = _ENV.FW_IsAsync
 
 function FW_MarkAsync(thread)
   active_threads[thread or cor_running()] = true
+end
+
+function FW_AsyncContext(thread)
+  thread = thread or cor_running()
+  local data = active_threads[thread]
+  if data then
+    if data == true then
+      data = {}
+      active_threads[thread] = data
+    end
+    return data
+  end
+  return nil
 end
 
 function FW_Schedule(scheduler, ...)
