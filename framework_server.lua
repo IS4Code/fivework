@@ -34,13 +34,13 @@ local TriggerClientEvent = _ENV.TriggerClientEvent
 local GetGameTimer = _ENV.GetGameTimer
 local Entity = _ENV.Entity
 
-local Cfx_SetTimeout = Citizen.SetTimeout
 local Cfx_Wait = Citizen.Wait
 local Cfx_CreateThread = Citizen.CreateThread
 
 local FW_Async = _ENV.FW_Async
 local FW_TryCall = _ENV.FW_TryCall
 local FW_TransformTableToStore = _ENV.FW_TransformTableToStore
+local FW_SetTimeout = _ENV.FW_SetTimeout
 
 local function t_unpack(t, i)
   return t_unpack_orig(t, i or 1, t.n)
@@ -101,7 +101,7 @@ do
     local source = _ENV.source
     local stored = observed_state[source]
     if stored then
-      Cfx_SetTimeout(0, function()
+      FW_SetTimeout(0, function()
         if observed_state[source] == stored then
           observed_state[source] = nil
         end
@@ -288,7 +288,7 @@ do
     if not queue then
       queue = {}
       exec_queue[player] = queue
-      Cfx_SetTimeout(0, function()
+      FW_SetTimeout(0, function()
         exec_queue[player] = nil
         TriggerClientEvent('fivework:ExecFunctions', player, queue)
       end)
@@ -438,7 +438,7 @@ do
         return callback(...)
       end
     end
-    Cfx_SetTimeout(timeout, function()
+    FW_SetTimeout(timeout, function()
       return finished(false, "timeout "..tostring(timeout).." hit")
     end)
     return scheduler(finished)
