@@ -52,6 +52,19 @@ local Cfx_InvokeNative = Citizen.InvokeNative
 local Cfx_ResultAsString = Citizen.ResultAsString()
 local Cfx_Wait = Citizen.Wait
 
+local t_pack_readonly
+do
+  local empty_pack = t_pack()
+  t_pack_readonly = function(...)
+    local first = ...
+    if first == nil and select('#', ...) == 0 then
+      return empty_pack
+    else
+      return t_pack(...)
+    end
+  end
+end
+
 local function t_unpack(t, i)
   return t_unpack_orig(t, i or 1, t.n)
 end
@@ -492,7 +505,7 @@ local function yield_scheduler(func, args)
 end
 
 function Yield(...)
-  return FW_Schedule(yield_scheduler, t_pack(...))
+  return FW_Schedule(yield_scheduler, t_pack_readonly(...))
 end
 
 local function threaded_scheduler(func, threadFunc, args)
@@ -502,7 +515,7 @@ local function threaded_scheduler(func, threadFunc, args)
 end
 
 function FW_Threaded(func, ...)
-  return FW_Schedule(threaded_scheduler, func, t_pack(...))
+  return FW_Schedule(threaded_scheduler, func, t_pack_readonly(...))
 end
 
 local function on_next(obj, onresult, onerror)
@@ -554,6 +567,214 @@ end
 
 function FW_Awaited(func, ...)
   return Cfx_Await(make_promise(func, ...))
+end
+
+do
+  local timeout_scheduler_old = Cfx_SetTimeout
+  
+  local task_pool = setmetatable({}, {
+    __mode = 'k'
+  })
+  
+  local task_list_front, task_list_back, task_time_middle
+  local task_list_tick = 0
+  
+  local function thread_func()
+    while true do
+      Cfx_Wait(0)
+      if task_list_tick == m_maxinteger then
+        task_list_tick = 0
+      else
+        task_list_tick = task_list_tick + 1
+      end
+      
+      local current_task = task_list_front
+      if not current_task then
+        -- Nothing to run
+        break
+      end
+      
+      local time = GetGameTimer()
+      while current_task and current_task[1] <= time do
+        local next_task = current_task[6]
+        
+        if current_task[2] ~= task_list_tick then
+          -- Created in a different tick - unlink and execute
+          
+          local prev_task = current_task[5]
+          
+          if prev_task then
+            -- Link next
+            prev_task[6] = next_task
+          else
+            -- This is first
+            task_time_middle = nil
+            task_list_front = next_task
+          end
+          
+          if next_task then
+            -- Link previous
+            next_task[5] = prev_task
+          else
+            -- This is last
+            task_time_middle = nil
+            task_list_back = prev_task
+          end
+          
+          -- Reclaim
+          current_task[5] = false
+          current_task[6] = false
+          task_pool[current_task] = true
+          
+          -- Execute - error breaks the loop but not the thread
+          current_task[3](t_unpack(current_task[4]))
+        end
+        
+        current_task = next_task
+      end
+    end
+  end
+  
+  local thread_running
+  local function launch_thread()
+    if thread_running then
+      return
+    end
+    
+    thread_running = true
+    Cfx_CreateThread(function()
+      local ok = log_error(xpcall(thread_func, FW_Traceback))
+      thread_running = false
+      if not ok then
+        -- Broken call but tasks may remain
+        return launch_thread()
+      end
+    end)    
+  end
+  
+  local function timeout_scheduler_new(interval, callback, ...)
+    local run_time = GetGameTimer() + interval
+    
+    if run_time == m_huge then
+      -- Never executed
+      return run_time
+    elseif run_time ~= run_time then
+      return error("Interval is NaN!")
+    end
+    
+    local args = t_pack_readonly(...)
+    
+    local task = next(task_pool)
+    if task then
+      task_pool[task] = nil
+      task[1] = run_time
+      task[2] = task_list_tick
+      task[3] = callback
+      task[4] = args
+    else
+      task = {run_time, task_list_tick, callback, args, false, false}
+    end
+    
+    -- Will execute in one tick
+    launch_thread()
+    
+    if not task_time_middle then
+      if not task_list_front then
+        -- First time, just set it and be done
+        task_list_front = task
+        task_list_back = task
+        task[5] = false
+        task[6] = false
+        task_time_middle = run_time
+        return run_time
+      else
+        -- Get average schedule time
+        task_time_middle = (task_list_front[1] + task_list_back[1]) / 2
+      end
+    end
+    
+    local current_task
+    if run_time <= task_time_middle then
+      -- Somewhere before the last element
+      if run_time <= task_list_front[1] then
+        -- Add to front
+        task_list_front[5] = task
+        task[5] = false
+        task[6] = task_list_front
+        task_list_front = task
+        -- Middle is changed
+        task_time_middle = nil
+      else
+        current_task = task_list_front
+        while true do
+          local next_task = current_task[6]
+          -- Should not be nil, since in that case we got to the end,
+          -- but run_time is before task_time_middle and thus before the end
+          if run_time <= next_task[1] then
+            -- Insert in the middle
+            current_task[6] = task
+            next_task[5] = task
+            task[5] = current_task
+            task[6] = next_task
+            break
+          end
+          current_task = next_task
+        end
+      end
+    else
+      -- Somewhere after the first element
+      if run_time >= task_list_back[1] then
+        -- Add to back
+        task_list_back[6] = task
+        task[5] = task_list_back
+        task[6] = false
+        task_list_back = task
+        -- Middle is changed
+        task_time_middle = nil
+      else
+        current_task = task_list_back
+        while true do
+          local prev_task = current_task[5]
+          -- Should not be nil
+          if run_time >= prev_task[1] then
+            -- Insert in the middle
+            current_task[5] = task
+            prev_task[6] = task
+            task[5] = prev_task
+            task[6] = current_task
+            break
+          end
+          current_task = prev_task
+        end
+      end
+    end
+    return run_time
+  end
+  
+  function FW_SetNewTimeoutScheduler(set_new)
+    if Cfx_SetTimeout == function_disabled then
+      return
+    end
+    if set_new then
+      Cfx_SetTimeout = timeout_scheduler_new
+    else
+      Cfx_SetTimeout = timeout_scheduler_old
+    end
+  end
+  
+  function FW_SetTimeout(interval, callback, ...)
+    if Cfx_SetTimeout == timeout_scheduler_new then
+      return Cfx_SetTimeout(interval, callback, ...)
+    end
+    local args = t_pack_readonly(...)
+    if args.n == 0 then
+      return Cfx_SetTimeout(interval, callback)
+    else
+      return Cfx_SetTimeout(interval, function()
+        return callback(t_unpack(args))
+      end)
+    end
+  end
 end
 
 -- callbacks
