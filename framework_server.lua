@@ -310,7 +310,12 @@ do
     t_insert(queue, {...})
   end
   
+  local empty_pack = t_pack()
   local function pack_args(...)
+    local first = ...
+    if first == nil and select('#', ...) == 0 then
+      return empty_pack
+    end
     local args = t_pack(...)
     for i = 1, args.n do
       local v = args[i]
