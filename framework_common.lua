@@ -453,11 +453,20 @@ function FW_AsyncContext(thread)
   return nil
 end
 
-function FW_Schedule(scheduler, ...)
-  if not FW_IsAsync() then
-    return error("attempted to perform asynchronous operation from non-asynchronous context; use FW_Async")
+do
+  local function make_promise(scheduler, ...)
+    local promise = p_new()
+    return promise, scheduler(function(...)
+      promise:resolve(t_pack_readonly(...))
+    end, ...)
   end
-  return cor_yield(scheduler, ...)
+  
+  function FW_Schedule(scheduler, ...)
+    if not FW_IsAsync() then
+      return t_unpack(Cfx_Await(make_promise(scheduler, ...)))
+    end
+    return cor_yield(scheduler, ...)
+  end
 end
 local FW_Schedule = _ENV.FW_Schedule
 
@@ -500,9 +509,7 @@ do
 end
 
 local function sleep_scheduler(func, ms, ...)
-  return Cfx_SetTimeout(ms, function(...)
-    func(...)
-  end, ...)
+  return Cfx_SetTimeout(ms, func, ...)
 end
 
 function Sleep(...)
