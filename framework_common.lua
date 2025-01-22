@@ -41,6 +41,7 @@ local s_gsub = string.gsub
 local s_sub = string.sub
 local s_find = string.find
 local s_match = string.match
+local p_new = promise.new
 
 local GetHashKey = _ENV.GetHashKey
 local GetGameTimer = _ENV.GetGameTimer
@@ -538,55 +539,25 @@ function FW_Threaded(func, ...)
   return FW_Schedule(threaded_scheduler, func, t_pack_readonly(...))
 end
 
-local function on_next(obj, onresult, onerror)
-  local result = obj.__result
-  if result then
-    if result[1] then
-      if onresult then
-        onresult(t_unpack(result, 2))
-      end
+do
+  local function finish_promise(promise, success, ...)
+    if success then
+      return promise:resolve(t_pack(...))
     else
-      if onerror then
-        onerror(t_unpack(result, 2))
-      end
+      return promise:reject(...)
     end
-  else
-    local cont = obj.__cont
-    if not cont then
-      cont = {}
-      obj.__cont = cont
-    end
-    t_insert(cont, {onresult, onerror})
   end
-  return obj
-end
 
-local function make_promise(func, ...)
-  local obj = {next = on_next}
-  return obj, FW_Async(function(...)
-    local result = t_pack(pcall(func, ...))
-    obj.__result = result
-    local cont = obj.__cont
-    if cont then
-      obj.__cont = nil
-      for i, c in ipairs(cont) do
-        local onresult, onerror = c[1], c[2]
-        if result[1] then
-          if onresult then
-            onresult(t_unpack(result, 2))
-          end
-        else
-          if onerror then
-            onerror(t_unpack(result, 2))
-          end
-        end
-      end
-    end
-  end, ...)
-end
-
-function FW_Awaited(func, ...)
-  return Cfx_Await(make_promise(func, ...))
+  local function make_promise(func, ...)
+    local promise = p_new()
+    return promise, FW_Async(function(...)
+      return finish_promise(promise, xpcall(func, FW_Traceback, ...))
+    end, ...)
+  end
+  
+  function FW_Awaited(func, ...)
+    return t_unpack(Cfx_Await(make_promise(func, ...)))
+  end
 end
 
 do
