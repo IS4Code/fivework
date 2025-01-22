@@ -21,7 +21,6 @@ local select = _ENV.select
 local tonumber = _ENV.tonumber
 local collectgarbage = _ENV.collectgarbage
 local t_pack = table.pack
-local t_unpack_orig = table.unpack
 local t_insert = table.insert
 local t_concat = table.concat
 local d_getinfo = debug.getinfo
@@ -53,21 +52,52 @@ local Cfx_InvokeNative = Citizen.InvokeNative
 local Cfx_ResultAsString = Citizen.ResultAsString()
 local Cfx_Wait = Citizen.Wait
 
-local t_pack_readonly
+local t_pack_readonly, t_unpack, t_unpack_reclaim
 do
+  -- Argument pack of size 0
   local empty_pack = t_pack()
-  t_pack_readonly = function(...)
-    local first = ...
-    if first == nil and select('#', ...) == 0 then
-      return empty_pack
-    else
-      return t_pack(...)
-    end
-  end
-end
+  
+  -- Argument packs of size 1
+  local singleton_pool = setmetatable({}, {
+    __mode = 'k'
+  })
 
-local function t_unpack(t, i)
-  return t_unpack_orig(t, i or 1, t.n)
+  t_pack_readonly = function(...)
+    local a, b = ...
+    if b == nil then
+      -- Necessary condition for <= 1 arguments
+      local count = select('#', ...)
+      if count == 0 then
+        -- No arguments
+        return empty_pack
+      elseif count == 1 then
+        -- Exactly one argument - attempt to retrieve from pool
+        local t = next(singleton_pool)
+        if t then
+          -- Found - take from pool and initialize (.n is already set)
+          singleton_pool[t] = nil
+          t[1] = a
+          return t
+        end
+      end
+    end
+    return t_pack(...)
+  end
+  
+  local t_unpack_orig = table.unpack
+  
+  t_unpack = function(t, i)
+    return t_unpack_orig(t, i or 1, t.n)
+  end
+  
+  t_unpack_reclaim = function(t, i)
+    local n = t.n
+    if n == 1 then
+      -- Exactly one element - store back to pool
+      singleton_pool[t] = true
+    end
+    return t_unpack_orig(t, i or 1, n)
+  end
 end
 
 -- configuration
@@ -463,7 +493,7 @@ do
   
   function FW_Schedule(scheduler, ...)
     if not FW_IsAsync() then
-      return t_unpack(Cfx_Await(make_promise(scheduler, ...)))
+      return t_unpack_reclaim(Cfx_Await(make_promise(scheduler, ...)))
     end
     return cor_yield(scheduler, ...)
   end
@@ -524,7 +554,7 @@ local function handle_yield_result(args, done, ...)
   if done then
     return ...
   else
-    return t_unpack(args)
+    return t_unpack_reclaim(args)
   end
 end
 
@@ -538,7 +568,7 @@ end
 
 local function threaded_scheduler(func, threadFunc, args)
   return Cfx_CreateThread(function()
-    return func(threadFunc(t_unpack(args)))
+    return func(threadFunc(t_unpack_reclaim(args)))
   end)
 end
 
@@ -549,7 +579,7 @@ end
 do
   local function finish_promise(promise, success, ...)
     if success then
-      return promise:resolve(t_pack(...))
+      return promise:resolve(t_pack_readonly(...))
     else
       return promise:reject(...)
     end
@@ -563,7 +593,7 @@ do
   end
   
   function FW_Awaited(func, ...)
-    return t_unpack(Cfx_Await(make_promise(func, ...)))
+    return t_unpack_reclaim(Cfx_Await(make_promise(func, ...)))
   end
 end
 
@@ -625,7 +655,7 @@ do
           task_pool[current_task] = true
           
           -- Execute - error breaks the loop but not the thread
-          current_task[3](t_unpack(current_task[4]))
+          current_task[3](t_unpack_reclaim(current_task[4]))
         end
         
         current_task = next_task
@@ -769,7 +799,7 @@ do
       return Cfx_SetTimeout(interval, callback)
     else
       return Cfx_SetTimeout(interval, function()
-        return callback(t_unpack(args))
+        return callback(t_unpack_reclaim(args))
       end)
     end
   end
