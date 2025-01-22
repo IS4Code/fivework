@@ -75,18 +75,6 @@ FW_ErrorLog = print
 FW_WarningLog = print
 FW_DebugLog = function()end
 
-local monitor_interval = 2000
-
-local async_cleanup = 4
-
-function FW_SetTimeMonitor(interval)
-  monitor_interval = interval
-end
-
-function FW_SetAsyncCleanup(size)
-  async_cleanup = size
-end
-
 do
   local stackdump_mt = {}
   
@@ -348,8 +336,35 @@ do
     return "running "..info.what.." function "..info.namewhat.." in "..info.short_src..":"..info.linedefined..".."..info.lastlinedefined
   end
   
+  local monitor_interval = 2000
+  
+  local function monitor_get_timer_enabled()
+    return GetGameTimer()
+  end
+  
+  local function monitor_get_timer_disabled()
+    return nil
+  end
+  
+  local monitor_get_timer = monitor_get_timer_enabled
+  
+  local async_cleanup = 4
+  
+  function FW_SetTimeMonitor(interval)
+    monitor_interval = interval
+    if interval then
+      monitor_get_timer = monitor_get_timer_enabled
+    else
+      monitor_get_timer = monitor_get_timer_disabled
+    end
+  end
+  
+  function FW_SetAsyncCleanup(size)
+    async_cleanup = size
+  end
+  
   local function check_time(start_time, thread)
-    if monitor_interval then
+    if monitor_interval and start_time then
       local time = GetGameTimer()
       if time > start_time + monitor_interval then
         local traceback
@@ -368,7 +383,7 @@ do
   
   local function schedule(thread, func, scheduler, ...)
     local continuation = function(...)
-      return on_yield(thread, func, GetGameTimer(), cor_resume(thread, ...))
+      return on_yield(thread, func, monitor_get_timer(), cor_resume(thread, ...))
     end
     if type(scheduler) == 'number' then
       return Cfx_SetTimeout(scheduler, continuation, ...)
@@ -407,7 +422,7 @@ do
       thread = cor_create(thread_func)
     end
     active_threads[thread] = true
-    return on_yield(thread, func, GetGameTimer(), cor_resume(thread, func, ...))
+    return on_yield(thread, func, monitor_get_timer(), cor_resume(thread, func, ...))
   end
 end
 local FW_Async = _ENV.FW_Async
