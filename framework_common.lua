@@ -324,64 +324,59 @@ local active_threads = setmetatable({}, {
   __mode = 'k'
 })
 
-local inactive_threads = setmetatable({}, {
-  __mode = 'k'
-})
-
-local thread_ended_signal = {false}
-
-local thread_func
-
-local function finish_thread_func(status, ...)
-  -- Save status temporarily in signal
-  thread_ended_signal[1] = status
-  return thread_func(cor_yield(thread_ended_signal, ...))
-end
-
-thread_func = function(func, ...)
-  return finish_thread_func(xpcall(func, FW_Traceback, ...))
-end
-
-local function function_info(func)
-  local info = d_getinfo(func)
-  return "running "..info.what.." function "..info.namewhat.." in "..info.short_src..":"..info.linedefined..".."..info.lastlinedefined
-end
-
-local function check_time(start_time, func, thread)
-  if monitor_interval then
-    local time = GetGameTimer()
-    if time > start_time + monitor_interval then
-      local traceback
-      if cor_status(thread) ~= 'dead' then
-        traceback = FW_Traceback(thread)
-      else
-        local ok
-        ok, traceback = pcall(function_info, func)
+do
+  local inactive_threads = setmetatable({}, {
+    __mode = 'k'
+  })
+  
+  local thread_ended_signal = {false}
+  
+  local thread_func
+  
+  local function finish_thread_func(status, ...)
+    -- Save status temporarily in signal
+    thread_ended_signal[1] = status
+    return thread_func(cor_yield(thread_ended_signal, ...))
+  end
+  
+  thread_func = function(func, ...)
+    return finish_thread_func(xpcall(func, FW_Traceback, ...))
+  end
+  
+  local function function_info(func)
+    local info = d_getinfo(func)
+    return "running "..info.what.." function "..info.namewhat.." in "..info.short_src..":"..info.linedefined..".."..info.lastlinedefined
+  end
+  
+  local function check_time(start_time, thread)
+    if monitor_interval then
+      local time = GetGameTimer()
+      if time > start_time + monitor_interval then
+        local traceback
+        if cor_status(thread) ~= 'dead' then
+          traceback = FW_Traceback(thread)
+        else
+          local ok
+          ok, traceback = pcall(function_info, func)
+        end
+        FW_WarningLog("Coroutine code took", time - start_time, "ms to execute:\n", traceback)
       end
-      FW_WarningLog("Coroutine code took", time - start_time, "ms to execute:\n", traceback)
     end
   end
-end
-
-function FW_Async(func, ...)
-  local thread = next(inactive_threads)
-  if thread then
-    inactive_threads[thread] = nil
-  else
-    thread = cor_create(thread_func)
-  end
-  active_threads[thread] = true
+  
   local on_yield
-  local function schedule(scheduler, ...)
+  
+  local function schedule(thread, func, scheduler, ...)
     local continuation = function(...)
-      return on_yield(GetGameTimer(), cor_resume(thread, ...))
+      return on_yield(thread, func, GetGameTimer(), cor_resume(thread, ...))
     end
     if type(scheduler) == 'number' then
       return Cfx_SetTimeout(scheduler, continuation, ...)
     end
     return scheduler(continuation, ...)
   end
-  on_yield = function(start_time, status, signal_or_scheduler, ...)
+  
+  on_yield = function(thread, func, start_time, status, signal_or_scheduler, ...)
     check_time(start_time, func, thread)
     if async_cleanup then
       collectgarbage('step', async_cleanup)
@@ -392,7 +387,7 @@ function FW_Async(func, ...)
     end
     if signal_or_scheduler ~= thread_ended_signal then
       -- Inner yield with scheduler
-      return false, schedule(signal_or_scheduler, ...)
+      return false, schedule(thread, func, signal_or_scheduler, ...)
     end
     -- Retrieve back status
     local ok = signal_or_scheduler[1]
@@ -403,7 +398,17 @@ function FW_Async(func, ...)
     end
     return true, ...
   end
-  return on_yield(GetGameTimer(), cor_resume(thread, func, ...))
+  
+  function FW_Async(func, ...)
+    local thread = next(inactive_threads)
+    if thread then
+      inactive_threads[thread] = nil
+    else
+      thread = cor_create(thread_func)
+    end
+    active_threads[thread] = true
+    return on_yield(thread, func, GetGameTimer(), cor_resume(thread, func, ...))
+  end
 end
 local FW_Async = _ENV.FW_Async
 
