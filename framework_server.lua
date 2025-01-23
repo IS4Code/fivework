@@ -21,6 +21,7 @@ local pairs = _ENV.pairs
 local tostring = _ENV.tostring
 local tonumber = _ENV.tonumber
 local setmetatable = _ENV.setmetatable
+local m_huge = math.huge
 local j_encode = json.encode
 local j_decode = json.decode
 local cor_wrap = coroutine.wrap
@@ -297,17 +298,30 @@ do
   
   local exec_queue = {}
   
+  local max_queue_size = 200
+  
+  function FW_SetRemoteCallQueueMaxSize(len)
+    max_queue_size = len or m_huge
+  end
+  
   local function remote_exec_function(player, ...)
     local queue = exec_queue[player]
     if not queue then
       queue = {}
       exec_queue[player] = queue
       FW_SetTimeout(0, function()
-        exec_queue[player] = nil
+        if exec_queue[player] == queue then
+          -- Reset if a new queue was not created (might happen if code runs between two scheduled executions)
+          exec_queue[player] = nil
+        end
         TriggerClientEvent('fivework:ExecFunctions', player, queue)
       end)
     end
     t_insert(queue, {...})
+    if #queue >= max_queue_size then
+      -- Reset the queue (timer will still send the old one)
+      exec_queue[player] = nil
+    end
   end
   
   local empty_pack = t_pack()
