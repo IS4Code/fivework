@@ -394,7 +394,7 @@ do
     async_cleanup = size
   end
   
-  local function check_time(start_time, thread)
+  local function check_time(start_time, func, thread)
     if monitor_interval and start_time then
       local time = GetGameTimer()
       if time > start_time + monitor_interval then
