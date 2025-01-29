@@ -789,6 +789,7 @@ do
       Cfx_SetTimeout = timeout_scheduler_old
     end
   end
+  FW_SetNewTimeoutScheduler(true)
   
   function FW_SetTimeout(interval, callback, ...)
     if Cfx_SetTimeout == timeout_scheduler_new then
