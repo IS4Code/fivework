@@ -21,6 +21,7 @@ local pairs = _ENV.pairs
 local tostring = _ENV.tostring
 local tonumber = _ENV.tonumber
 local setmetatable = _ENV.setmetatable
+local select = _ENV.select
 local m_huge = math.huge
 local j_encode = json.encode
 local j_decode = json.decode
