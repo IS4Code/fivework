@@ -804,6 +804,7 @@ do
     end
   end
 end
+local FW_SetTimeout = _ENV.FW_SetTimeout
 
 -- callbacks
 
@@ -873,74 +874,76 @@ local FW_TriggerCallback = _ENV.FW_TriggerCallback
 
 -- commands
 
-local registered_commands = {}
-
-local function after_command(source, rawCommand, status, ...)
-  local result = FW_TriggerCallback('OnPlayerPerformedCommand', source, rawCommand, status, ...)
-  if not status and not result then
-    return FW_ErrorLog("Error from command '"..tostring(rawCommand).."':\n", ...)
+do
+  local registered_commands = {}
+  
+  local function after_command(source, rawCommand, status, ...)
+    local result = FW_TriggerCallback('OnPlayerPerformedCommand', source, rawCommand, status, ...)
+    if not status and not result then
+      return FW_ErrorLog("Error from command '"..tostring(rawCommand).."':\n", ...)
+    end
   end
-end
-
-local function call_command(source, args, result, ...)
-  if result == true then
-    return after_command(source, args, xpcall(args.handler, FW_Traceback, source, args, ...))
-  elseif result ~= false then
-    return after_command(source, args, xpcall(args.handler, FW_Traceback, source, args, t_unpack(args)))
+  
+  local function call_command(source, args, result, ...)
+    if result == true then
+      return after_command(source, args, xpcall(args.handler, FW_Traceback, source, args, ...))
+    elseif result ~= false then
+      return after_command(source, args, xpcall(args.handler, FW_Traceback, source, args, t_unpack(args)))
+    end
   end
-end
-
-local command_mt = {
-  __tostring = function(self)
-    return self.raw or ""
-  end,
-  __index = function(self, key)
-    local raw = self.raw
-    if type(raw) == 'string' then
-      local value
-      if key == 'rawName' then
-        local pos, _, match = s_find(raw, '^%s*([^%s]+)%s*')
-        if pos then
-          value = match
+  
+  local function handle_command(source, args, ...)
+    return call_command(source, args, FW_TriggerCallback('OnPlayerReceivedCommand', source, args, ...))
+  end
+  
+  local command_mt = {
+    __tostring = function(self)
+      return self.raw or ""
+    end,
+    __index = function(self, key)
+      local raw = self.raw
+      if type(raw) == 'string' then
+        local value
+        if key == 'rawName' then
+          local pos, _, match = s_find(raw, '^%s*([^%s]+)%s*')
+          if pos then
+            value = match
+          end
+        elseif key == 'rawArgs' then
+          value = s_gsub(raw, '^%s*[^%s]+%s*', '')
         end
-      elseif key == 'rawArgs' then
-        value = s_gsub(raw, '^%s*[^%s]+%s*', '')
+        rawset(self, key, value)
+        return value
       end
-      rawset(self, key, value)
-      return value
+    end
+  }
+  
+  local function cmd_newindex(restricted)
+    return function(self, key, value)
+      if not registered_commands[key] then
+        registered_commands[key] = RegisterCommand(key, function(source, args, rawCommand)
+          local func = self[key]
+          if func then
+            args.raw = rawCommand
+            args.handler = func
+            args.name = key
+            setmetatable(args, command_mt)
+            return FW_SetTimeout(0, FW_Async, handle_command, source, args, t_unpack(args))
+          end
+        end, restricted)
+      end
+      return rawset(self, key, value)
     end
   end
-}
-
-local function cmd_newindex(restricted)
-  return function(self, key, value)
-    if not registered_commands[key] then
-      registered_commands[key] = RegisterCommand(key, function(source, args, rawCommand)
-        local func = self[key]
-        if func then
-          args.raw = rawCommand
-          args.handler = func
-          args.name = key
-          setmetatable(args, command_mt)
-          return immediate(FW_Async(function(...)
-            Sleep(0)
-            return call_command(source, args, FW_TriggerCallback('OnPlayerReceivedCommand', source, args, ...))
-          end, t_unpack(args)))
-        end
-      end, restricted)
-    end
-    return rawset(self, key, value)
-  end
+  
+  cmd = setmetatable({}, {
+     __newindex = cmd_newindex(false)
+  })
+  
+  cmd_ac = setmetatable({}, {
+     __newindex = cmd_newindex(true)
+  })
 end
-
-cmd = setmetatable({}, {
-   __newindex = cmd_newindex(false)
-})
-
-cmd_ac = setmetatable({}, {
-   __newindex = cmd_newindex(true)
-})
-
 local cmd, cmd_ac = _ENV.cmd, _ENV.cmd_ac
 
 function FW_TriggerCommand(name, ...)
