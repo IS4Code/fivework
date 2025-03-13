@@ -938,6 +938,33 @@ do
     return clear_state(spawner.state)
   end
   
+  local function update_state(state, data)
+    local init = state[init_key]
+    if init then
+      local clock = (init._cl or -1) + 1
+      data._cl = clock
+    end
+    state[init_key] = data
+  end
+  
+  function UpdateEntityInitState(entity, data)
+    return update_state(Entity(entity).state, data)
+  end
+  
+  function UpdateEntitySpawnerInitState(spawner, data)
+    return update_state(spawner.state, data)
+  end
+  
+  local entity_init_changed_handler, spawner_init_changed_handler
+  
+  function SetEntityInitStateChangedHandler(handler)
+    entity_init_changed_handler = handler
+  end
+  
+  function SetEntitySpawnerInitStateChangedHandler(handler)
+    spawner_init_changed_handler = handler
+  end
+  
   local function add_state(state, key, fname, once, for_owner, args)
     local init = state[init_key]
     if not init then
@@ -955,17 +982,24 @@ do
       init[key] = data
     end
     state[init_key] = init
+    return init
   end
   
   local function add_entity_state(entity, key, fname, once, for_owner, args)
     local state = Entity(entity).state
     entity_last_state[entity] = state
-    return add_state(state, key, fname, once, for_owner, args)
+    local init = add_state(state, key, fname, once, for_owner, args)
+    if entity_init_changed_handler then
+      entity_init_changed_handler(entity, init)
+    end
   end
   
   local function add_entity_spawner_state(spawner, key, fname, once, for_owner, args)
     local state = spawner.state
-    return add_state(state, key, fname, once, for_owner, args)
+    local init = add_state(state, key, fname, once, for_owner, args)
+    if spawner_init_changed_handler then
+      spawner_init_changed_handler(entity, init)
+    end
   end
   
   local function set_entity_state(adder, fname, entity, key_length, once, reset, for_owner, ...)
