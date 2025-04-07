@@ -1362,6 +1362,7 @@ do
               local moved
               for k, v in pairs(tested) do
                 if default_value[k] == nil then
+                  -- Key does not have individual validation
                   if default_key_validator then
                     local new_k = default_key_validator(k)
                     if new_k ~= k then
@@ -1381,7 +1382,8 @@ do
               if moved then
                 for k, v in pairs(moved) do
                   if tested[k] == nil then
-                    if default_value_validator and default_value[k] ~= nil then
+                    if default_value_validator and default_value[k] == nil then
+                      -- Do not validate value when the key is validated individually later
                       v = default_value_validator(v)
                     end
                     tested[k] = v
